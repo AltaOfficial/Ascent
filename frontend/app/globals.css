@@ -1,26 +1,59 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg:             #0a0a0c;
+  --surface:        #111114;
+  --surface-2:      #17171b;
+  --border:         rgba(255,255,255,0.07);
+  --border-mid:     rgba(255,255,255,0.12);
+  --text-primary:   #ebebeb;
+  --text-secondary: #4a4a55;
+  --text-mid:       #7a7a85;
+  --accent:         #c8c8d4;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg:              var(--bg);
+  --color-surface:         var(--surface);
+  --color-surface-2:       var(--surface-2);
+  --color-text-primary:    var(--text-primary);
+  --color-text-secondary:  var(--text-secondary);
+  --color-text-mid:        var(--text-mid);
+  --color-accent:          var(--accent);
+  --font-display: var(--font-syne);
+  --font-serif:   var(--font-fraunces);
+  --font-mono:    var(--font-dm-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+@keyframes scrollPulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.8; }
+}
+
+html {
+  background-color: var(--bg);
+  scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-dm-mono, 'DM Mono', monospace);
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 1000;
 }
