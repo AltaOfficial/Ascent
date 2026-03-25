@@ -112,7 +112,7 @@ export default function RankingPage() {
   return (
     <>
       <nav
-        className="fixed top-0 left-0 right-0 z-100 px-15 py-[18px] flex items-center justify-between border-b"
+        className="fixed top-0 left-0 right-0 z-100 px-6 md:px-15 py-[18px] flex items-center justify-between border-b"
         style={{
           borderColor: "var(--border)",
           background: "rgba(10,10,12,0.92)",
@@ -135,7 +135,7 @@ export default function RankingPage() {
       </nav>
 
       {/* Hero */}
-      <div className="pt-[140px] pb-20 px-15 max-w-[800px] mx-auto text-center">
+      <div className="pt-[100px] md:pt-[140px] pb-12 md:pb-20 px-6 md:px-15 max-w-[800px] mx-auto text-center">
         <div className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-[18px]">
           The Rank System
         </div>
@@ -157,7 +157,7 @@ export default function RankingPage() {
         </p>
       </div>
 
-      <div className="max-w-[900px] mx-auto px-15 pb-[100px]">
+      <div className="max-w-[900px] mx-auto px-6 md:px-15 pb-16 md:pb-[100px]">
 
         {/* Tiers */}
         <div
@@ -167,7 +167,7 @@ export default function RankingPage() {
           {TIERS.map((t, i) => (
             <div
               key={t.name}
-              className="grid border-b last:border-b-0 hover:bg-surface transition-colors duration-150"
+              className="flex flex-col md:grid border-b last:border-b-0 hover:bg-surface transition-colors duration-150"
               style={{
                 gridTemplateColumns: "200px 1fr 1fr",
                 borderColor: "var(--border)",
@@ -175,24 +175,24 @@ export default function RankingPage() {
             >
               {/* Identity */}
               <div
-                className="p-7 flex flex-col gap-2 border-r"
+                className="px-5 py-5 md:p-7 flex flex-row md:flex-col items-center md:items-start gap-3 md:gap-2 md:border-r border-b md:border-b-0"
                 style={{ borderColor: "var(--border)" }}
               >
-                <div className="text-[22px] opacity-65 leading-none">▲</div>
-                <div className="font-display text-[16px] font-bold tracking-[-0.01em]">
+                <div className="text-[18px] md:text-[22px] opacity-65 leading-none">▲</div>
+                <div className="font-display text-[15px] md:text-[16px] font-bold tracking-[-0.01em]">
                   {t.name}
                 </div>
                 <div
-                  className="h-[2px] w-12 rounded-[1px] mt-1"
+                  className="h-[2px] w-8 md:w-12 rounded-[1px] md:mt-1 ml-auto md:ml-0"
                   style={{ background: t.color }}
                 />
               </div>
               {/* Range */}
               <div
-                className="p-7 flex flex-col justify-center border-r"
+                className="px-5 py-4 md:p-7 flex flex-row md:flex-col items-center md:items-start justify-between md:justify-center md:border-r border-b md:border-b-0"
                 style={{ borderColor: "var(--border)" }}
               >
-                <div className="font-display text-[18px] font-semibold tracking-[-0.02em] mb-1">
+                <div className="font-display text-[16px] md:text-[18px] font-semibold tracking-[-0.02em] md:mb-1">
                   {t.range}
                 </div>
                 <div className="text-[10px] text-text-secondary tracking-[0.06em] uppercase">
@@ -200,7 +200,7 @@ export default function RankingPage() {
                 </div>
               </div>
               {/* Desc */}
-              <div className="p-7 flex flex-col justify-center">
+              <div className="px-5 py-4 md:p-7 flex flex-col justify-center">
                 <div className="text-[12px] text-text-secondary leading-[1.8] tracking-[0.02em]">
                   {t.desc}
                 </div>
@@ -281,7 +281,7 @@ export default function RankingPage() {
             Most productivity systems use streaks or point totals. Ascent
             doesn't. Here's why each design decision was made deliberately.
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {PHIL.map((p) => (
               <div
                 key={p.title}

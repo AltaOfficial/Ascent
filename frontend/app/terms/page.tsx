@@ -69,7 +69,7 @@ export default function TermsPage() {
   return (
     <>
       <nav
-        className="fixed top-0 left-0 right-0 z-100 px-15 py-[18px] flex items-center justify-between border-b"
+        className="fixed top-0 left-0 right-0 z-100 px-6 md:px-15 py-[18px] flex items-center justify-between border-b"
         style={{
           borderColor: "var(--border)",
           background: "rgba(10,10,12,0.92)",
@@ -91,7 +91,7 @@ export default function TermsPage() {
         </Link>
       </nav>
 
-      <div className="max-w-[720px] mx-auto px-15 pt-[120px] pb-[100px]">
+      <div className="max-w-[720px] mx-auto px-6 md:px-15 pt-[100px] md:pt-[120px] pb-16 md:pb-[100px]">
         <div className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-4">
           Legal
         </div>

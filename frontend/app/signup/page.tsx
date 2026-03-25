@@ -99,7 +99,7 @@ export default function SignupPage() {
       />
 
       <nav
-        className="px-10 py-5 flex items-center justify-between border-b relative"
+        className="px-6 md:px-10 py-5 flex items-center justify-between border-b relative"
         style={{ borderColor: "var(--border)", zIndex: 1 }}
       >
         <Link
@@ -109,7 +109,7 @@ export default function SignupPage() {
           <img src="/logo.svg" alt="Ascent" className="w-5 h-5" />
           Ascent
         </Link>
-        <div className="text-[12px] text-text-secondary tracking-[0.03em]">
+        <div className="text-[12px] text-text-secondary tracking-[0.03em] hidden sm:block">
           Already have an account?{" "}
           <Link
             href="/login"
