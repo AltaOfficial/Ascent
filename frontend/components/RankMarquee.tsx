@@ -24,7 +24,7 @@ export default function RankMarquee() {
       <motion.div
         className="flex whitespace-nowrap"
         animate={{ x: ["0%", "-50%"] }}
-        transition={{ duration: 24, repeat: Infinity, ease: "linear" }}
+        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
       >
         {items.map((rank, i) => (
           <div

@@ -40,7 +40,7 @@ export default function Home() {
         <Divider />
         <WaitlistCTA />
       </main>
-      <Footer />
+      <Footer tagline />
     </>
   );
 }
