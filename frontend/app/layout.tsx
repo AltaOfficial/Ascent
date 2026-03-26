@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Syne, Fraunces, DM_Mono } from "next/font/google";
 import "./globals.css";
+import FilmGrain from "@/components/FilmGrain";
 
 const syne = Syne({
   variable: "--font-syne",
@@ -40,7 +41,9 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${syne.variable} ${fraunces.variable} ${dmMono.variable} antialiased`}
+        suppressHydrationWarning
       >
+        <FilmGrain />
         {children}
       </body>
     </html>

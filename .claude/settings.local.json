@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/jaedo/Documents/GitHub/Ascent/frontend/components/ui -type f -name *.tsx -o -name *.ts)",
+      "Bash(find /c/Users/jaedo/Documents/GitHub/Ascent/frontend -name *dashboard* -o -name *layout*)",
+      "Bash(npx shadcn@latest init --yes --base-color neutral)",
+      "Bash(npx shadcn@latest init --yes)",
+      "Bash(npx shadcn@latest add button card table badge select --yes)",
+      "Bash(npm install:*)",
+      "Bash(ls \"c:\\\\Users\\\\jaedo\\\\Documents\\\\GitHub\\\\Ascent\\\\frontend\\\\lib\"\" && cat \"c:UsersjaedoDocumentsGitHubAscentfrontendlibutils.ts\" 2>/dev/null || echo \"no utils.ts \")",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}
