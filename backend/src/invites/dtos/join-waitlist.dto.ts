@@ -1,4 +1,3 @@
-
 export class JoinWaitListDto {
-    email: string;
+  email: string;
 }

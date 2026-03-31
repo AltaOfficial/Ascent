@@ -1,9 +1,9 @@
 export class InviteDto {
-    id: string
+  id: string;
 
-    email: string
+  email: string;
 
-    inviteCode: string
+  inviteCode: string;
 
-    createdAt: Date
+  createdAt: Date;
 }
