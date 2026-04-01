@@ -1,7 +1,13 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import HoursChart from "@/components/dashboard/HoursChart";
 import TaskInbox from "@/components/dashboard/TaskInbox";
 import { DriftDonut, MiniLine } from "@/components/dashboard/ClientCharts";
+import { apiFetch } from "@/lib/api";
+
+type HoursEntry = { date: string; hours: number };
 
 function Card({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
@@ -24,9 +30,24 @@ function CardLabel({ children }: { children: React.ReactNode }) {
 
 export default function DashboardPage() {
   const today = format(new Date(), "EEEE, MMMM d, yyyy");
+  const [hoursData, setHoursData] = useState<HoursEntry[]>([]);
+
+  const fetchHours = useCallback(async (range: "7d" | "30d" | "3m") => {
+    try {
+      const data = await apiFetch<HoursEntry[]>("/users/hours", {
+        method: "POST",
+        body: JSON.stringify({ range }),
+      });
+      setHoursData(data);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchHours("30d");
+  }, [fetchHours]);
 
   return (
-    <div className="p-4 md:p-8 pb-15">
+    <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-15" style={{ scrollbarWidth: "thin", scrollbarColor: "var(--border) transparent" }}>
       {/* Page header */}
       <div className="flex items-center justify-between mb-7">
         <h1
@@ -115,7 +136,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Hours chart */}
-      <HoursChart />
+      <HoursChart data={hoursData} onPeriodChange={fetchHours} />
 
       {/* Task inbox */}
       <TaskInbox />

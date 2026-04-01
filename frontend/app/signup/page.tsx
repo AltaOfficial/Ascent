@@ -3,6 +3,8 @@
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { apiFetch, setTokenCookie } from "@/lib/api";
 
 function formatInvite(val: string) {
   let v = val.replace(/[^A-Z0-9]/gi, "").toUpperCase();
@@ -22,6 +24,7 @@ function getStrength(val: string) {
 }
 
 export default function SignupPage() {
+  const router = useRouter();
   const [inviteCode, setInviteCode] = useState("");
   const [inviteLocked, setInviteLocked] = useState(false);
   const [emailLocked, setEmailLocked] = useState(false);
@@ -50,18 +53,33 @@ export default function SignupPage() {
 
   const strength = getStrength(password);
 
-  function validateInvite() {
+  async function validateInvite() {
     if (inviteCode.length < 14) {
       setError("Invite code must be 12 characters.");
-    } else {
-      setError("");
-      setInviteValid(true);
+      return;
+    }
+    setError("");
+    try {
+      const result = await apiFetch<{ valid: boolean }>("/invite/check", {
+        method: "POST",
+        body: JSON.stringify({ code: inviteCode }),
+      });
+      if (result.valid) {
+        setInviteValid(true);
+      } else {
+        setError("Invalid invite code.");
+      }
+    } catch {
+      setError("Could not verify invite code.");
     }
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
+    const firstName = (form.elements.namedItem("firstName") as HTMLInputElement).value;
+    const lastName = (form.elements.namedItem("lastName") as HTMLInputElement).value;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const pw = (form.elements.namedItem("password") as HTMLInputElement).value;
     const cpw = (form.elements.namedItem("confirm") as HTMLInputElement).value;
     setError("");
@@ -70,10 +88,19 @@ export default function SignupPage() {
     if (pw.length < 8) { setError("Password must be at least 8 characters."); return; }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const result = await apiFetch<{ access_token: string }>("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ firstName, lastName, email, password: pw, inviteCode }),
+      });
+      setTokenCookie(result.access_token);
       setSuccess(true);
-    }, 1400);
+      setTimeout(() => router.push("/dashboard"), 1200);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const barClass = (index: number) => {
@@ -130,18 +157,9 @@ export default function SignupPage() {
               <div className="font-display text-[22px] font-bold tracking-[-0.02em] mb-2">
                 You&apos;re in.
               </div>
-              <p className="text-[13px] text-text-secondary leading-[1.7] tracking-[0.02em] mb-6">
-                Your account has been created.
-                <br />
-                Time to start tracking.
+              <p className="text-[13px] text-text-secondary leading-[1.7] tracking-[0.02em]">
+                Redirecting to your dashboard...
               </p>
-              <Link
-                href="/"
-                className="inline-block px-7 py-[11px] rounded-[7px] text-[12px] font-medium tracking-[0.04em] no-underline transition-opacity hover:opacity-90"
-                style={{ background: "var(--text-primary)", color: "var(--bg)", fontFamily: "var(--font-mono)" }}
-              >
-                Open Ascent →
-              </Link>
             </div>
           ) : (
             <>
@@ -192,13 +210,14 @@ export default function SignupPage() {
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-3">
-                  {["First name", "Last name"].map((label) => (
-                    <div key={label} className="flex flex-col gap-1.5">
+                  {[{ label: "First name", name: "firstName" }, { label: "Last name", name: "lastName" }].map(({ label, name }) => (
+                    <div key={name} className="flex flex-col gap-1.5">
                       <label className="text-[10px] tracking-[0.1em] uppercase text-text-secondary">{label}</label>
                       <input
                         type="text"
-                        placeholder={label === "First name" ? "Jaedon" : "Farr"}
-                        autoComplete={label === "First name" ? "given-name" : "family-name"}
+                        name={name}
+                        placeholder={name === "firstName" ? "Jaedon" : "Farr"}
+                        autoComplete={name === "firstName" ? "given-name" : "family-name"}
                         required
                         className="rounded-[7px] px-3.5 py-[11px] text-[13px] text-text-primary outline-none"
                         style={{ background: "var(--surface)", border: "1px solid var(--border-mid)", fontFamily: "var(--font-mono)" }}

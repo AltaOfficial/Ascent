@@ -1,11 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "./Sidebar";
+import { apiFetch } from "@/lib/api";
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<{ firstName: string; lastName: string } | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ firstName: string; lastName: string }>("/users/me")
+      .then(setUser)
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)" }}>
@@ -25,7 +33,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <Sidebar onClose={() => setSidebarOpen(false)} />
+        <Sidebar onClose={() => setSidebarOpen(false)} user={user} />
       </div>
 
       {/* Main */}
@@ -59,8 +67,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </header>
 
         <main
-          className="flex-1 overflow-y-auto"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "var(--border) transparent" }}
+          className="flex-1 overflow-hidden flex flex-col"
         >
           {children}
         </main>

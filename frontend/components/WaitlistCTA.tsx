@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { reveal } from "@/lib/animations";
+import { apiFetch } from "@/lib/api";
 
 export default function WaitlistCTA() {
   const ref = useRef(null);
@@ -11,13 +12,21 @@ export default function WaitlistCTA() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!email.includes("@")) {
       setError(true);
       return;
     }
     setError(false);
-    setSubmitted(true);
+    try {
+      await apiFetch("/invite/waitlist/join", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+      setSubmitted(true);
+    } catch {
+      setError(true);
+    }
   }
 
   return (

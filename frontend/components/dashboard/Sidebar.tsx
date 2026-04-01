@@ -3,26 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
 
 const NAV = [
-  { icon: "○", label: "Home",      href: "/" },
-  { icon: "■", label: "Dashboard", href: "/dashboard" },
+  { label: "Dashboard", href: "/dashboard" },
 ];
 
 const SUBNAV = [
-  { label: "Inbox",    href: "/dashboard/tasks" },
-  { label: "Projects", href: "/dashboard/tasks/projects" },
+  { label: "Inbox",    href: "/dashboard/tasks",          exact: true },
+  { label: "Projects", href: "/dashboard/tasks/projects", exact: false },
 ];
 
 const NAV2 = [
-  { icon: "□", label: "Calendar",   href: "/dashboard/calendar" },
-  { icon: "◆", label: "Compliance", href: "/dashboard/compliance" },
-  { icon: "▲", label: "Analytics",  href: "/dashboard/analytics" },
-  { icon: "◇", label: "Advisory",   href: "/dashboard/advisory" },
+  { label: "Calendar",   href: "/dashboard/calendar" },
+  { label: "Compliance", href: "/dashboard/compliance" },
+  { label: "Analytics",  href: "/dashboard/analytics" },
+  { label: "Advisory",   href: "/dashboard/advisory" },
 ];
 
-export default function Sidebar({ onClose }: { onClose?: () => void }) {
+export default function Sidebar({ onClose, user }: { onClose?: () => void; user?: { firstName: string; lastName: string } | null }) {
   const pathname = usePathname();
   const [tasksOpen, setTasksOpen] = useState(true);
 
@@ -56,28 +54,52 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         <div className="mt-2">
           <button
             onClick={() => setTasksOpen((o) => !o)}
-            className="flex items-center justify-between w-full px-4.5 py-1.75 text-[12px] tracking-[0.02em] transition-colors"
+            className="flex items-center justify-between w-full px-4.5 py-2 text-[13px] tracking-[0.02em] transition-all duration-150 rounded-none"
             style={{ color: "var(--text-secondary)" }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+              (e.currentTarget as HTMLElement).style.textShadow = "0 0 12px rgba(232,232,232,0.25)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+              (e.currentTarget as HTMLElement).style.textShadow = "none";
+            }}
           >
-            <span className="flex items-center gap-2.5">
-              <span className="text-[11px] opacity-50">□</span>
-              Tasks
-            </span>
-            <span className="text-[9px]">{tasksOpen ? "▾" : "▸"}</span>
+            <span>Tasks</span>
+            <span className="text-[9px]" style={{ opacity: 0.5 }}>{tasksOpen ? "▾" : "▸"}</span>
           </button>
           {tasksOpen && (
             <div>
-              {SUBNAV.map((s) => (
-                <Link
-                  key={s.href}
-                  href={s.href}
-                  onClick={onClose}
-                  className="block pl-10 pr-4 py-1.75 text-[11px] tracking-[0.02em] transition-colors hover:text-text-mid"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  {s.label}
-                </Link>
-              ))}
+              {SUBNAV.map((s) => {
+                const active = s.exact ? pathname === s.href : (pathname === s.href || pathname.startsWith(s.href + "/"));
+                return (
+                  <Link
+                    key={s.href}
+                    href={s.href}
+                    onClick={onClose}
+                    className="relative block pl-8 pr-4 py-2 text-[13px] tracking-[0.02em] transition-all duration-150"
+                    style={{ color: active ? "var(--text-primary)" : "var(--text-secondary)", textShadow: "none" }}
+                    onMouseEnter={e => {
+                      if (!active) {
+                        (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+                        (e.currentTarget as HTMLElement).style.textShadow = "0 0 12px rgba(232,232,232,0.25)";
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.color = active ? "var(--text-primary)" : "var(--text-secondary)";
+                      (e.currentTarget as HTMLElement).style.textShadow = "none";
+                    }}
+                  >
+                    {active && (
+                      <span
+                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3.5 rounded-r"
+                        style={{ background: "var(--text-primary)" }}
+                      />
+                    )}
+                    {s.label}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
@@ -96,10 +118,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           className="flex items-center justify-center w-6.5 h-6.5 rounded-full border shrink-0 text-[10px]"
           style={{ background: "var(--surface-2)", borderColor: "var(--border-mid)", color: "var(--text-mid)" }}
         >
-          JF
+          {user ? `${user.firstName[0]}${user.lastName[0]}` : "—"}
         </div>
-        <span className="text-[11px] tracking-[0.02em]" style={{ color: "var(--text-secondary)" }}>
-          Jaedon Farr
+        <span className="text-[13px] tracking-[0.02em]" style={{ color: "var(--text-secondary)" }}>
+          {user ? `${user.firstName} ${user.lastName}` : ""}
         </span>
       </div>
     </aside>
@@ -107,18 +129,26 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
 }
 
 function NavItem({
-  icon, label, href, active, onClick,
+  label, href, active, onClick,
 }: {
-  icon: string; label: string; href: string; active: boolean; onClick?: () => void;
+  label: string; href: string; active: boolean; onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
       onClick={onClick}
-      className={cn(
-        "relative flex items-center gap-2.5 px-4.5 py-1.75 text-[12px] tracking-[0.02em] transition-colors",
-        active ? "text-text-primary" : "text-text-secondary hover:text-text-mid"
-      )}
+      className="relative flex items-center px-4.5 py-2 text-[13px] tracking-[0.02em] transition-all duration-150"
+      style={{ color: active ? "var(--text-primary)" : "var(--text-secondary)", textShadow: "none" }}
+      onMouseEnter={e => {
+        if (!active) {
+          (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+          (e.currentTarget as HTMLElement).style.textShadow = "0 0 12px rgba(232,232,232,0.25)";
+        }
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLElement).style.color = active ? "var(--text-primary)" : "var(--text-secondary)";
+        (e.currentTarget as HTMLElement).style.textShadow = "none";
+      }}
     >
       {active && (
         <span
@@ -126,9 +156,6 @@ function NavItem({
           style={{ background: "var(--text-primary)" }}
         />
       )}
-      <span className={cn("text-[11px] flex items-center justify-center w-3.5", active ? "opacity-80" : "opacity-50")}>
-        {icon}
-      </span>
       {label}
     </Link>
   );

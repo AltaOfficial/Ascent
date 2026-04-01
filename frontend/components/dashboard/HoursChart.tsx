@@ -7,24 +7,7 @@ import { cn } from "@/lib/utils";
 
 type Period = "7d" | "30d" | "3m";
 
-function genDays(n: number): string[] {
-  const today = new Date();
-  return Array.from({ length: n }, (_, i) => format(subDays(today, n - 1 - i), "MMM d"));
-}
-
-function genHours(n: number, seed: number): number[] {
-  // deterministic pseudorandom for SSR consistency
-  return Array.from({ length: n }, (_, i) => {
-    const x = Math.sin(seed + i) * 10000;
-    return +((x - Math.floor(x)) * 4 + 1.5).toFixed(1);
-  });
-}
-
-const DATASETS: Record<Period, { labels: string[]; data: number[] }> = {
-  "7d":  { labels: genDays(7),  data: genHours(7,  1) },
-  "30d": { labels: genDays(30), data: genHours(30, 2) },
-  "3m":  { labels: genDays(90), data: genHours(90, 3) },
-};
+type HoursEntry = { date: string; hours: number };
 
 const PERIOD_LABELS: Record<Period, string> = {
   "7d":  "Total for the last 7 days",
@@ -38,13 +21,38 @@ const TABS: { key: Period; label: string }[] = [
   { key: "7d",  label: "Last 7 Days" },
 ];
 
-export default function HoursChart() {
+function buildChartData(period: Period, entries: HoursEntry[]) {
+  const dayCount = period === "7d" ? 7 : period === "30d" ? 30 : 90;
+  const today = new Date();
+  const hoursMap: Record<string, number> = {};
+  for (const entry of entries) {
+    hoursMap[entry.date] = entry.hours;
+  }
+  return Array.from({ length: dayCount }, (_, i) => {
+    const date = format(subDays(today, dayCount - 1 - i), "yyyy-MM-dd");
+    const label = format(subDays(today, dayCount - 1 - i), "MMM d");
+    return { label, hours: hoursMap[date] ?? 0 };
+  });
+}
+
+export default function HoursChart({
+  data,
+  onPeriodChange,
+}: {
+  data?: HoursEntry[];
+  onPeriodChange?: (period: Period) => void;
+}) {
   const [period, setPeriod] = useState<Period>("30d");
 
   const chartData = useMemo(
-    () => DATASETS[period].labels.map((label, i) => ({ label, hours: DATASETS[period].data[i] })),
-    [period]
+    () => buildChartData(period, data ?? []),
+    [period, data]
   );
+
+  function handlePeriodChange(newPeriod: Period) {
+    setPeriod(newPeriod);
+    onPeriodChange?.(newPeriod);
+  }
 
   return (
     <div
@@ -64,7 +72,6 @@ export default function HoursChart() {
           </div>
         </div>
 
-        {/* Tabs */}
         <div
           className="flex border rounded-md overflow-hidden"
           style={{ borderColor: "var(--border)" }}
@@ -72,7 +79,7 @@ export default function HoursChart() {
           {TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setPeriod(tab.key)}
+              onClick={() => handlePeriodChange(tab.key)}
               className={cn(
                 "px-3 py-1.5 text-[10px] tracking-[0.04em] transition-colors font-mono",
                 period === tab.key

@@ -16,4 +16,10 @@ export class InvitesController {
     // user has joined the waitlist now time to send them an email
     this.invitesService.sendWaitlistOpenedEmail(invite);
   }
+
+  @Post('/check')
+  async checkInvite(@Body() body: { code: string }) {
+    const valid = await this.invitesService.inviteExists(body.code);
+    return { valid };
+  }
 }

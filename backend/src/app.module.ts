@@ -9,10 +9,20 @@ import { UserEntity } from './users/entities/user.entity';
 import { InvitesModule } from './invites/invites.module';
 import { InviteEntity } from './invites/entities/invite.entity';
 import { AuthModule } from './auth/auth.module';
+import { ProjectsModule } from './projects/projects.module';
+import { ProjectEntity } from './projects/entities/project.entity';
+import { TasksModule } from './tasks/tasks.module';
+import { TaskEntity } from './tasks/entities/task.entity';
+import { SubtaskEntity } from './tasks/entities/subtask.entity';
+import { TimeEntriesModule } from './time-entries/time-entries.module';
+import { TimeEntryEntity } from './time-entries/entities/time-entry.entity';
+import { ComplianceModule } from './compliance/compliance.module';
+import { ComplianceRuleEntity } from './compliance/entities/compliance-rule.entity';
+import { ComplianceEntryEntity } from './compliance/entities/compliance-entry.entity';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: process.env.DB_TYPE as any,
       host: process.env.DB_HOST as any,
@@ -20,13 +30,17 @@ import { AuthModule } from './auth/auth.module';
       username: process.env.DB_USER as any,
       password: process.env.DB_PASS as any,
       database: process.env.DB_NAME as any,
-      entities: [UserEntity, InviteEntity],
+      entities: [UserEntity, InviteEntity, ProjectEntity, TaskEntity, SubtaskEntity, TimeEntryEntity, ComplianceRuleEntity, ComplianceEntryEntity],
       synchronize: true, // dont use in production
     }),
     MailerModule,
     InvitesModule,
     UsersModule,
     AuthModule,
+    ProjectsModule,
+    TasksModule,
+    TimeEntriesModule,
+    ComplianceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

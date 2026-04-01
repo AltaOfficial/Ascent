@@ -3,25 +3,33 @@
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { apiFetch, setTokenCookie } from "@/lib/api";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function handleLogin(e: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setLoading(true);
     const email = (e.currentTarget.elements.namedItem("email") as HTMLInputElement).value;
+    const password = (e.currentTarget.elements.namedItem("password") as HTMLInputElement).value;
 
-    setTimeout(() => {
+    try {
+      const { access_token } = await apiFetch<{ access_token: string }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username: email, password }),
+      });
+      setTokenCookie(access_token);
+      router.push("/dashboard");
+    } catch {
+      setError("Incorrect email or password. Try again.");
+    } finally {
       setLoading(false);
-      if (email !== "demo@ascent.app") {
-        setError("Incorrect email or password. Try again.");
-      } else {
-        window.location.href = "/";
-      }
-    }, 1200);
+    }
   }
 
   return (

@@ -29,13 +29,9 @@ export class InvitesService {
   }
 
   async inviteExists(inviteCode: string): Promise<boolean> {
-    const invite = await this.inviteRepository.findBy({
-      inviteCode: inviteCode,
-    })[0];
-    if (invite) {
-      return true;
-    }
-    return false;
+    const inviteCodeReformatted = inviteCode.replace(/-/g, '');
+    const invite = await this.inviteRepository.findOneBy({ inviteCode: inviteCodeReformatted });
+    return !!invite;
   }
 
   sendWaitlistOpenedEmail(inviteDto: InviteDto) {

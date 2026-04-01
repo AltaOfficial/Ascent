@@ -15,12 +15,18 @@ export class UsersService {
     return await this.userRepository.findOneBy({ email: email });
   }
 
+  async findOneById(id: string) {
+    return await this.userRepository.findOneBy({ id: id });
+  }
+
   async create({
-    name,
+    firstName,
+    lastName,
     email,
     password,
   }: {
-    name: string;
+    firstName: string;
+    lastName: string;
     email: string;
     password: string;
   }) {
@@ -28,11 +34,13 @@ export class UsersService {
     const passwordHash = await bcrypt.hash(password, salt);
 
     const user = this.userRepository.create({
-      name: name,
+      firstName: firstName,
+      lastName: lastName,
       email: email,
       password: passwordHash,
     });
 
-    this.userRepository.save(user);
+    await this.userRepository.save(user);
+    return user;
   }
 }
