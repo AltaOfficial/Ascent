@@ -38,7 +38,8 @@ export default function WaitlistCTA() {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(200,200,210,0.03), transparent)",
+          background:
+            "radial-gradient(ellipse 60% 40% at 50% 50%, rgba(200,200,210,0.03), transparent)",
         }}
       />
 
@@ -66,15 +67,26 @@ export default function WaitlistCTA() {
               type="email"
               placeholder="your@email.com"
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(false); }}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError(false);
+              }}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               className="flex-1 rounded-[7px] text-text-primary font-mono text-[12px] px-4 py-3 outline-none transition-colors duration-150 placeholder:text-text-secondary"
               style={{
                 background: "var(--surface)",
                 border: `1px solid ${error ? "rgba(217,107,107,0.4)" : "var(--border-mid)"}`,
               }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = error ? "rgba(217,107,107,0.5)" : "rgba(200,200,210,0.3)")}
-              onBlur={(e) => (e.currentTarget.style.borderColor = error ? "rgba(217,107,107,0.4)" : "var(--border-mid)")}
+              onFocus={(e) =>
+                (e.currentTarget.style.borderColor = error
+                  ? "rgba(217,107,107,0.5)"
+                  : "rgba(200,200,210,0.3)")
+              }
+              onBlur={(e) =>
+                (e.currentTarget.style.borderColor = error
+                  ? "rgba(217,107,107,0.4)"
+                  : "var(--border-mid)")
+              }
             />
             <motion.button
               whileTap={{ scale: 0.97 }}
@@ -90,7 +102,8 @@ export default function WaitlistCTA() {
             animate={{ opacity: 1, y: 0 }}
             className="text-[13px] text-text-mid tracking-[0.04em]"
           >
-            You&apos;re on the list. We&apos;ll reach out when early access opens.
+            You&apos;re on the list. We&apos;ll reach out when early access
+            opens.
           </motion.div>
         )}
       </motion.div>

@@ -27,30 +27,6 @@ type Column = {
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const INITIAL_COLUMNS: Column[] = [
-  {
-    id: 1, name: "ENGR 1182",
-    tasks: [
-      { id: 1, title: "Do memo 2", tag: "", due: "", priority: "mid", status: "Todo", notes: "", est: "", done: false },
-      { id: 2, title: "Finish lab", tag: "", due: "2026-03-22", priority: "high", status: "In Progress", notes: "Friction lab write-up", est: "2h", done: false },
-    ],
-  },
-  {
-    id: 2, name: "PHYS 1250",
-    tasks: [
-      { id: 3, title: "Do HW 4", tag: "", due: "", priority: "mid", status: "Todo", notes: "", est: "45m", done: false },
-      { id: 4, title: "Ask to Retake Test", tag: "exam", due: "", priority: "high", status: "Todo", notes: "Email Prof. Chen", est: "", done: false },
-      { id: 5, title: "Study Ch. 4", tag: "exam", due: "2026-03-28", priority: "high", status: "In Progress", notes: "Newton's laws + friction", est: "1h 30m", done: false },
-    ],
-  },
-  {
-    id: 3, name: "MATH 1151",
-    tasks: [
-      { id: 6, title: "L'Hôpital's rule practice", tag: "", due: "", priority: "mid", status: "Todo", notes: "", est: "1h", done: false },
-      { id: 7, title: "Linear approximation HW", tag: "", due: "2026-03-21", priority: "mid", status: "In Progress", notes: "", est: "30m", done: false },
-    ],
-  },
-];
 
 const TAG_STYLES: Record<string, { bg: string; color: string }> = {
   bug:     { bg: "rgba(217,107,107,0.2)",  color: "rgba(217,107,107,0.9)" },
@@ -86,9 +62,9 @@ type ActiveTimer = { taskId: number; colId: number; startTs: number };
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function KanbanPage() {
-  const [columns, setColumns] = useState<Column[]>(INITIAL_COLUMNS);
-  const [nextColId, setNextColId] = useState(4);
-  const [nextTaskId, setNextTaskId] = useState(8);
+  const [columns, setColumns] = useState<Column[]>([]);
+  const [nextColId, setNextColId] = useState(1);
+  const [nextTaskId, setNextTaskId] = useState(1);
   const [doneMode, setDoneMode] = useState<"keep" | "archive">("keep");
   const [addingInCol, setAddingInCol] = useState<number | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState("");

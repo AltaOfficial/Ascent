@@ -5,9 +5,16 @@ import Link from "next/link";
 import Sidebar from "./Sidebar";
 import { apiFetch } from "@/lib/api";
 
-export default function DashboardShell({ children }: { children: React.ReactNode }) {
+export default function DashboardShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{ firstName: string; lastName: string } | null>(null);
+  const [user, setUser] = useState<{
+    firstName: string;
+    lastName: string;
+  } | null>(null);
 
   useEffect(() => {
     apiFetch<{ firstName: string; lastName: string }>("/users/me")
@@ -16,8 +23,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg)" }}>
-
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ background: "var(--bg)" }}
+    >
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -38,7 +47,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-
         {/* Mobile topbar */}
         <header
           className="flex items-center justify-between px-4 py-3 border-b lg:hidden shrink-0"
@@ -49,16 +57,28 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             className="flex flex-col gap-1 p-1"
             aria-label="Open menu"
           >
-            <span className="block w-4 h-px" style={{ background: "var(--text-secondary)" }} />
-            <span className="block w-4 h-px" style={{ background: "var(--text-secondary)" }} />
-            <span className="block w-4 h-px" style={{ background: "var(--text-secondary)" }} />
+            <span
+              className="block w-4 h-px"
+              style={{ background: "var(--text-secondary)" }}
+            />
+            <span
+              className="block w-4 h-px"
+              style={{ background: "var(--text-secondary)" }}
+            />
+            <span
+              className="block w-4 h-px"
+              style={{ background: "var(--text-secondary)" }}
+            />
           </button>
           <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" alt="" style={{ height: 16, width: "auto" }} />
             <span
               className="text-sm font-semibold tracking-[-0.01em]"
-              style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+              style={{
+                fontFamily: "var(--font-display)",
+                color: "var(--text-primary)",
+              }}
             >
               Ascent
             </span>
@@ -66,11 +86,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <div className="w-6" />
         </header>
 
-        <main
-          className="flex-1 overflow-hidden flex flex-col"
-        >
-          {children}
-        </main>
+        <main className="flex-1 overflow-hidden flex flex-col">{children}</main>
       </div>
     </div>
   );

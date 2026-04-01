@@ -30,16 +30,6 @@ const TYPE_COLOR: Record<EventType, { text: string; bg: string; border: string }
   event:    { text: "#6bbb8a", bg: "rgba(107,187,138,0.15)",  border: "rgba(107,187,138,0.5)" },
 };
 
-const INITIAL_EVENTS: CalEvent[] = [
-  { id:1, type:"exam",     title:"Calculus Midterm",      date:"2026-04-08", time:"10:00", notes:"Chapters 1–4", done:false },
-  { id:2, type:"task",     title:"PHYS Lab Report",       date:"2026-04-10", time:"23:59", notes:"Submit on Canvas", done:false },
-  { id:3, type:"event",    title:"RocketHacks Debrief",   date:"2026-04-12", time:"14:00", notes:"", done:false },
-  { id:4, type:"birthday", title:"Mom's Birthday",        date:"2026-04-15", time:"", notes:"", done:false },
-  { id:5, type:"task",     title:"Update Ascent README",  date:"2026-04-18", time:"", notes:"", done:false },
-  { id:6, type:"exam",     title:"Physics Final",         date:"2026-04-22", time:"09:00", notes:"Chapters 1–6", done:false },
-  { id:7, type:"event",    title:"FedEx Shift",           date:"2026-04-05", time:"06:00", notes:"", done:false },
-  { id:8, type:"task",     title:"Internship App: Google",date:"2026-04-03", time:"", notes:"", done:true },
-];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function dateKey(y: number, m: number, d: number) {
@@ -61,8 +51,8 @@ function getWeekStart(d: Date) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
-  const [events, setEvents] = useState<CalEvent[]>(INITIAL_EVENTS);
-  const [nextId, setNextId] = useState(9);
+  const [events, setEvents] = useState<CalEvent[]>([]);
+  const [nextId, setNextId] = useState(1);
   const [view, setView] = useState<"month" | "week">("month");
   const [current, setCurrent] = useState(new Date());
 
@@ -200,7 +190,7 @@ export default function CalendarPage() {
         <div
           key={dKey}
           onClick={() => setDetailDate({ y: cy, m: cm, d: cd })}
-          className="border-r border-b min-h-[88px] p-2 transition-colors"
+          className="border-r border-b min-h-27.5 p-2 transition-colors"
           style={{
             borderColor: "var(--border)",
             background: "transparent",
@@ -422,7 +412,7 @@ export default function CalendarPage() {
   // ── Render ────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "var(--border) transparent" }}>
-      <div className="max-w-[900px] mx-auto px-7 py-11 pb-20">
+      <div className="px-6 md:px-10 py-7 pb-20">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-9">

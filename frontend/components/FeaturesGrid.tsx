@@ -17,7 +17,10 @@ export default function FeaturesGrid() {
           initial="hidden"
           animate={inView ? "visible" : "hidden"}
         >
-          <motion.div variants={reveal} className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-4">
+          <motion.div
+            variants={reveal}
+            className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-4"
+          >
             What it does
           </motion.div>
           <motion.h2
@@ -29,27 +32,41 @@ export default function FeaturesGrid() {
             <br />
             Nothing you don&apos;t.
           </motion.h2>
-          <motion.p variants={reveal} className="text-[13px] text-text-secondary leading-[1.9] max-w-120 tracking-[0.02em]">
-            Six layers. Each one answers a specific question you&apos;re already asking yourself.
+          <motion.p
+            variants={reveal}
+            className="text-[13px] text-text-secondary leading-[1.9] max-w-120 tracking-[0.02em]"
+          >
+            Six layers. Each one answers a specific question you&apos;re already
+            asking yourself.
           </motion.p>
         </motion.div>
 
         <div
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 mt-12 md:mt-16 border rounded-xl overflow-hidden"
-          style={{ gap: "1px", background: "var(--border)", borderColor: "var(--border)" }}
+          style={{
+            gap: "1px",
+            background: "var(--border)",
+            borderColor: "var(--border)",
+          }}
         >
           {FEATURES.map((feat) => (
             <div
               key={feat.title}
               className="relative overflow-hidden px-6 md:px-7 py-7 md:py-8 transition-colors duration-150 cursor-default"
               style={{ background: "var(--bg)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg)")}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "var(--surface)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "var(--bg)")
+              }
             >
-              <span className="block text-[10px] tracking-[0.1em] text-text-secondary mb-5">
+              <span className="block text-[10px] tracking-widest text-text-secondary mb-5">
                 {feat.num}
               </span>
-              <span className="block text-[18px] mb-3.5 opacity-60">{feat.icon}</span>
+              <span className="block text-[18px] mb-3.5 opacity-60">
+                {feat.icon}
+              </span>
               <div className="font-display font-semibold text-[15px] tracking-[-0.01em] mb-2.5 text-text-primary">
                 {feat.title}
               </div>

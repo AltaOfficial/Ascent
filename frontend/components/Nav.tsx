@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 
 const navLinks = [
-  { label: "Features",   href: "features" },
-  { label: "Ranks",      href: "ranks" },
+  { label: "Features", href: "features" },
+  { label: "Ranks", href: "ranks" },
   { label: "Compliance", href: "compliance" },
-  { label: "Advisor",    href: "advisor" },
+  { label: "Advisor", href: "advisor" },
 ];
 
 function scrollTo(id: string) {
@@ -36,7 +36,9 @@ export default function Nav() {
             ? "border-b backdrop-blur-md bg-bg/90"
             : "border-b border-transparent bg-transparent"
         }`}
-        style={scrolled || menuOpen ? { borderColor: "var(--border)" } : undefined}
+        style={
+          scrolled || menuOpen ? { borderColor: "var(--border)" } : undefined
+        }
       >
         <div className="flex items-center gap-2.5 font-display text-[15px] font-bold tracking-[0.01em] text-text-primary">
           <img src="/logo.svg" alt="Ascent" className="w-5 h-5" />
@@ -59,7 +61,7 @@ export default function Nav() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => scrollTo("waitlist")}
-            className="hidden md:block bg-text-primary text-bg font-mono text-[11px] font-medium px-5 py-2 rounded-[6px] border-none cursor-pointer tracking-[0.04em] hover:opacity-90 transition-opacity"
+            className="hidden md:block bg-text-primary text-bg font-mono text-[11px] font-medium px-5 py-2 rounded-md border-none cursor-pointer tracking-[0.04em] hover:opacity-90 transition-opacity"
           >
             Get Early Access
           </button>
@@ -88,7 +90,9 @@ export default function Nav() {
               className="block w-5 h-px transition-all duration-300"
               style={{
                 background: "var(--text-secondary)",
-                transform: menuOpen ? "translateY(-5px) rotate(-45deg)" : "none",
+                transform: menuOpen
+                  ? "translateY(-5px) rotate(-45deg)"
+                  : "none",
               }}
             />
           </button>
@@ -98,7 +102,7 @@ export default function Nav() {
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="fixed top-[61px] left-0 right-0 z-40 flex flex-col px-6 py-6 gap-5 border-b md:hidden"
+          className="fixed top-15.25 left-0 right-0 z-40 flex flex-col px-6 py-6 gap-5 border-b md:hidden"
           style={{ background: "var(--bg)", borderColor: "var(--border)" }}
         >
           {navLinks.map((link) => (
@@ -112,7 +116,7 @@ export default function Nav() {
           ))}
           <button
             onClick={() => handleNavLink("waitlist")}
-            className="mt-2 bg-text-primary text-bg font-mono text-[12px] font-medium px-5 py-3 rounded-[6px] border-none cursor-pointer tracking-[0.04em] hover:opacity-90 transition-opacity text-center"
+            className="mt-2 bg-text-primary text-bg font-mono text-[12px] font-medium px-5 py-3 rounded-md border-none cursor-pointer tracking-[0.04em] hover:opacity-90 transition-opacity text-center"
           >
             Get Early Access
           </button>

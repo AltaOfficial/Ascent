@@ -18,7 +18,7 @@ function scrollTo(id: string) {
 
 export default function HeroSection() {
   return (
-    <section className="min-h-screen flex flex-col items-center justify-center px-6 md:px-15 pt-[120px] pb-20 relative text-center overflow-hidden">
+    <section className="min-h-screen flex flex-col items-center justify-center px-6 md:px-15 pt-30 pb-20 relative text-center overflow-hidden">
       {/* Grid background */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -26,8 +26,10 @@ export default function HeroSection() {
           backgroundImage:
             "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
           backgroundSize: "60px 60px",
-          maskImage: "radial-gradient(ellipse 80% 60% at 50% 50%, black 40%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(ellipse 80% 60% at 50% 50%, black 40%, transparent 100%)",
+          maskImage:
+            "radial-gradient(ellipse 80% 60% at 50% 50%, black 40%, transparent 100%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse 80% 60% at 50% 50%, black 40%, transparent 100%)",
         }}
       />
 
@@ -38,8 +40,11 @@ export default function HeroSection() {
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <span
-          className="w-[5px] h-[5px] rounded-full flex-shrink-0"
-          style={{ background: "rgba(107,187,138,0.7)", animation: "blink 1.4s infinite" }}
+          className="w-1.25 h-1.25 rounded-full shrink-0"
+          style={{
+            background: "rgba(107,187,138,0.7)",
+            animation: "blink 1.4s infinite",
+          }}
         />
         Now in development · MVP shipping Q2 2026
       </motion.div>
@@ -76,7 +81,7 @@ export default function HeroSection() {
       {/* Sub */}
       <motion.p
         {...fadeUp(0.2)}
-        className="text-[13px] md:text-[14px] text-text-secondary tracking-[0.02em] leading-[1.8] max-w-[480px] mx-auto mt-5 mb-12 px-2"
+        className="text-[13px] md:text-[14px] text-text-secondary tracking-[0.02em] leading-[1.8] max-w-120 mx-auto mt-5 mb-12 px-2"
       >
         Every session logged, every rule held or broken, every hour allocated —
         Ascent turns your daily behavior into a record of the person you&apos;re
@@ -98,8 +103,12 @@ export default function HeroSection() {
           onClick={() => scrollTo("features")}
           className="w-full sm:w-auto bg-transparent text-text-secondary font-mono text-[12px] px-6 py-3 rounded-[7px] cursor-pointer tracking-[0.04em] hover:text-text-mid transition-colors duration-150"
           style={{ border: "1px solid var(--border)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-mid)")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.borderColor = "var(--border-mid)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.borderColor = "var(--border)")
+          }
         >
           See How It Works
         </button>
@@ -108,12 +117,13 @@ export default function HeroSection() {
       {/* Scroll indicator */}
       <motion.div
         {...fadeUp(0.5)}
-        className="mt-16 text-[10px] tracking-[0.1em] uppercase text-text-secondary flex flex-col items-center gap-2"
+        className="mt-16 text-[10px] tracking-widest uppercase text-text-secondary flex flex-col items-center gap-2"
       >
         <div
           className="w-px h-10"
           style={{
-            background: "linear-gradient(to bottom, var(--text-secondary), transparent)",
+            background:
+              "linear-gradient(to bottom, var(--text-secondary), transparent)",
             animation: "scrollPulse 2s infinite",
           }}
         />

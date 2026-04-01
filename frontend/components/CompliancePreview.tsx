@@ -28,7 +28,10 @@ export default function CompliancePreview() {
           initial="hidden"
           animate={inView ? "visible" : "hidden"}
         >
-          <motion.div variants={reveal} className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-4">
+          <motion.div
+            variants={reveal}
+            className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-4"
+          >
             Self-control made measurable
           </motion.div>
           <motion.h2
@@ -51,18 +54,25 @@ export default function CompliancePreview() {
               83%.
             </em>
           </motion.h2>
-          <motion.p variants={reveal} className="text-[13px] text-text-secondary leading-[1.9] max-w-120 tracking-[0.02em] mt-5">
-            Three rules. Seven days. Every day is binary — you either held the line or you
-            didn&apos;t. The number removes the emotional fog and gives you something to improve.
+          <motion.p
+            variants={reveal}
+            className="text-[13px] text-text-secondary leading-[1.9] max-w-120 tracking-[0.02em] mt-5"
+          >
+            Three rules. Seven days. Every day is binary — you either held the
+            line or you didn&apos;t. The number removes the emotional fog and
+            gives you something to improve.
           </motion.p>
 
           <motion.div variants={reveal} className="mt-8">
-            <div className="flex flex-wrap gap-[3px]">
+            <div className="flex flex-wrap gap-0.75">
               {heatmapLevels.map((level, i) => (
                 <div
                   key={i}
-                  className="w-3.5 h-3.5 rounded-[2px]"
-                  style={{ background: heatmapColors[level], border: "1px solid var(--border)" }}
+                  className="w-3.5 h-3.5 rounded-xs"
+                  style={{
+                    background: heatmapColors[level],
+                    border: "1px solid var(--border)",
+                  }}
                 />
               ))}
             </div>
@@ -78,7 +88,10 @@ export default function CompliancePreview() {
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
           className="rounded-xl p-5 md:p-8 overflow-x-auto"
-          style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+          }}
         >
           <div className="flex justify-between items-end mb-7">
             <div className="text-[11px] text-text-secondary tracking-[0.04em]">
@@ -89,14 +102,17 @@ export default function CompliancePreview() {
             </div>
           </div>
 
-          <table className="w-full border-collapse min-w-[340px]">
+          <table className="w-full border-collapse min-w-85">
             <thead>
               <tr>
                 <th className="text-left text-[9px] tracking-[0.08em] uppercase text-text-secondary pb-3 font-normal">
                   Rule
                 </th>
                 {days.map((d) => (
-                  <th key={d} className="text-center text-[9px] tracking-[0.08em] uppercase text-text-secondary pb-3 font-normal">
+                  <th
+                    key={d}
+                    className="text-center text-[9px] tracking-[0.08em] uppercase text-text-secondary pb-3 font-normal"
+                  >
                     {d}
                   </th>
                 ))}
@@ -108,7 +124,9 @@ export default function CompliancePreview() {
             <tbody>
               {rules.map((rule, ri) => {
                 const row = compliance[ri];
-                const pct = Math.round((row.reduce((a, b) => a + b, 0) / 7) * 100);
+                const pct = Math.round(
+                  (row.reduce((a, b) => a + b, 0) / 7) * 100,
+                );
                 return (
                   <tr key={rule}>
                     <td className="text-[11px] text-text-mid tracking-[0.02em] py-2 pr-2 whitespace-nowrap">
@@ -117,9 +135,11 @@ export default function CompliancePreview() {
                     {row.map((val, di) => (
                       <td key={di} className="text-center py-2">
                         <span
-                          className="inline-block w-[22px] h-[22px] rounded-[4px]"
+                          className="inline-block w-5.5 h-5.5 rounded-sm"
                           style={{
-                            background: val ? "rgba(200,200,210,0.18)" : "transparent",
+                            background: val
+                              ? "rgba(200,200,210,0.18)"
+                              : "transparent",
                             border: `1px solid ${val ? "rgba(200,200,210,0.25)" : "var(--border)"}`,
                           }}
                         />

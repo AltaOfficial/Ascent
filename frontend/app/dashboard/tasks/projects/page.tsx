@@ -20,23 +20,12 @@ type Project = {
   lastActive: string;
 };
 
-const INITIAL_PROJECTS: Project[] = [
-  { id: 1, name: "School",      color: "#d96b6b", category: "School",   desc: "CSCC coursework — Calc, PHYS, ENGR", tasks: 12, done: 5,  lastActive: "Today" },
-  { id: 2, name: "Ascent",      color: "#7b6ef6", category: "SaaS",     desc: "Life OS / behavioral compliance tracker", tasks: 18, done: 8,  lastActive: "Today" },
-  { id: 3, name: "ReachAI",     color: "#6b9ed9", category: "Revenue",  desc: "Twitter DM automation platform", tasks: 9,  done: 3,  lastActive: "Yesterday" },
-  { id: 4, name: "Strive",      color: "#6bbb8a", category: "SaaS",     desc: "Gym tracking app — Spring Boot + React Native", tasks: 7,  done: 4,  lastActive: "2 days ago" },
-  { id: 5, name: "Leet Code",   color: "#d9c46b", category: "Skills",   desc: "Daily DSA practice", tasks: 30, done: 14, lastActive: "Today" },
-  { id: 6, name: "Job Search",  color: "#d9896b", category: "Personal", desc: "500+ apps/month — SWE internships", tasks: 6,  done: 2,  lastActive: "Today" },
-  { id: 7, name: "Practium",    color: "#c47fd4", category: "SaaS",     desc: "AI study assistant — GPT-4o, Next.js, Flask", tasks: 5,  done: 5,  lastActive: "1 week ago" },
-  { id: 8, name: "Engineering", color: "#d9d9d9", category: "Skills",   desc: "Isaac Sim, robotics, ML fundamentals", tasks: 4,  done: 1,  lastActive: "3 days ago" },
-];
-
 const CATEGORIES = ["School", "SaaS", "Skills", "Revenue", "Personal", "Other"];
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
-  const [nextId, setNextId] = useState(9);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [nextId, setNextId] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedColor, setSelectedColor] = useState(COLORS[4]);

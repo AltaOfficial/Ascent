@@ -5,7 +5,15 @@ import { motion, useInView } from "framer-motion";
 import { driftCats } from "@/lib/constants";
 import { reveal, staggerContainer } from "@/lib/animations";
 
-function DriftBars({ cats, weekKey, inView }: { cats: typeof driftCats; weekKey: "thisWeek" | "lastWeek"; inView: boolean }) {
+function DriftBars({
+  cats,
+  weekKey,
+  inView,
+}: {
+  cats: typeof driftCats;
+  weekKey: "thisWeek" | "lastWeek";
+  inView: boolean;
+}) {
   return (
     <div className="flex flex-col gap-2.5">
       {cats.map((cat) => {
@@ -16,12 +24,19 @@ function DriftBars({ cats, weekKey, inView }: { cats: typeof driftCats; weekKey:
               <span>{cat.label}</span>
               <span>{val}%</span>
             </div>
-            <div className="h-px overflow-hidden" style={{ background: "var(--border)" }}>
+            <div
+              className="h-px overflow-hidden"
+              style={{ background: "var(--border)" }}
+            >
               <motion.div
                 className="h-px opacity-70"
                 initial={{ width: "0%" }}
                 animate={inView ? { width: `${val}%` } : {}}
-                transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+                transition={{
+                  duration: 0.9,
+                  ease: [0.16, 1, 0.3, 1],
+                  delay: 0.2,
+                }}
                 style={{ background: cat.color }}
               />
             </div>
@@ -44,7 +59,10 @@ export default function DriftWatch() {
           initial="hidden"
           animate={inView ? "visible" : "hidden"}
         >
-          <motion.div variants={reveal} className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-4">
+          <motion.div
+            variants={reveal}
+            className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-4"
+          >
             Strategic clarity
           </motion.div>
           <motion.h2
@@ -56,9 +74,13 @@ export default function DriftWatch() {
             <br />
             before it costs you.
           </motion.h2>
-          <motion.p variants={reveal} className="text-[13px] text-text-secondary leading-[1.9] max-w-120 tracking-[0.02em]">
-            Every task is tagged by category. The dashboard shows exactly where your time went
-            this week — not by feel, by data. Infra-tweaking that feels like work shows up immediately.
+          <motion.p
+            variants={reveal}
+            className="text-[13px] text-text-secondary leading-[1.9] max-w-120 tracking-[0.02em]"
+          >
+            Every task is tagged by category. The dashboard shows exactly where
+            your time went this week — not by feel, by data. Infra-tweaking that
+            feels like work shows up immediately.
           </motion.p>
         </motion.div>
 
@@ -71,7 +93,10 @@ export default function DriftWatch() {
           <motion.div
             variants={reveal}
             className="rounded-[10px] p-6"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+            }}
           >
             <div className="font-display font-semibold text-[13px] tracking-[-0.01em] mb-4.5 text-text-primary">
               This Week
@@ -82,7 +107,10 @@ export default function DriftWatch() {
           <motion.div
             variants={reveal}
             className="rounded-[10px] p-6"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+            }}
           >
             <div className="font-display font-semibold text-[13px] tracking-[-0.01em] mb-4.5 text-text-primary">
               Last Week
