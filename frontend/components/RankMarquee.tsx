@@ -28,7 +28,7 @@ function Track() {
             {rank.name}
           </span>
           <span className="text-[10px] text-text-secondary tracking-[0.03em]">
-            {rank.range}
+            {rank.hours}
           </span>
         </div>
       ))}

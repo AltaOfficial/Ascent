@@ -13,6 +13,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   validate(payload: any) {
-    return { userId: payload.sub, username: payload.username };
+    // Handle legacy tokens where payload was double-nested as { payload: { sub, username } }
+    const data = payload.payload ?? payload;
+    return { userId: data.sub, username: data.username };
   }
 }

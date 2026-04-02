@@ -29,6 +29,9 @@ export class ProjectEntity {
   @Column({ nullable: true })
   categoryTag: string;
 
+  @Column({ nullable: true })
+  color: string;
+
   @Column()
   userId: string;
 

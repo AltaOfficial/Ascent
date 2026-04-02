@@ -11,6 +11,8 @@ import { InviteEntity } from './invites/entities/invite.entity';
 import { AuthModule } from './auth/auth.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ProjectEntity } from './projects/entities/project.entity';
+import { ProjectSectionEntity } from './projects/entities/project-section.entity';
+import { ProjectTagEntity } from './projects/entities/project-tag.entity';
 import { TasksModule } from './tasks/tasks.module';
 import { TaskEntity } from './tasks/entities/task.entity';
 import { SubtaskEntity } from './tasks/entities/subtask.entity';
@@ -19,6 +21,8 @@ import { TimeEntryEntity } from './time-entries/entities/time-entry.entity';
 import { ComplianceModule } from './compliance/compliance.module';
 import { ComplianceRuleEntity } from './compliance/entities/compliance-rule.entity';
 import { ComplianceEntryEntity } from './compliance/entities/compliance-entry.entity';
+import { CalendarEventsModule } from './calendar-events/calendar-events.module';
+import { CalendarEventEntity } from './calendar-events/entities/calendar-event.entity';
 
 @Module({
   imports: [
@@ -30,7 +34,7 @@ import { ComplianceEntryEntity } from './compliance/entities/compliance-entry.en
       username: process.env.DB_USER as any,
       password: process.env.DB_PASS as any,
       database: process.env.DB_NAME as any,
-      entities: [UserEntity, InviteEntity, ProjectEntity, TaskEntity, SubtaskEntity, TimeEntryEntity, ComplianceRuleEntity, ComplianceEntryEntity],
+      entities: [UserEntity, InviteEntity, ProjectEntity, ProjectSectionEntity, ProjectTagEntity, TaskEntity, SubtaskEntity, TimeEntryEntity, ComplianceRuleEntity, ComplianceEntryEntity, CalendarEventEntity],
       synchronize: true, // dont use in production
     }),
     MailerModule,
@@ -41,6 +45,7 @@ import { ComplianceEntryEntity } from './compliance/entities/compliance-entry.en
     TasksModule,
     TimeEntriesModule,
     ComplianceModule,
+    CalendarEventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

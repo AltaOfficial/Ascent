@@ -1,110 +1,73 @@
 import Link from "next/link";
 import Footer from "@/components/Footer";
+import { RANKS, RANKING_CONFIG } from "@/lib/constants";
 
 export const metadata = { title: "How Ranking Works — Ascent" };
-
-const TIERS = [
-  {
-    name: "Foundation",
-    range: "0 – 1.5h",
-    unit: "per day",
-    desc: "Establishing the baseline. The act of logging consistently is the work at this stage.",
-    trait: "Starting point",
-    color: "rgba(200,200,210,0.35)",
-  },
-  {
-    name: "Builder",
-    range: "1.5 – 3h",
-    unit: "per day",
-    desc: "Consistent output forming. A pattern is visible in your data. Momentum is accumulating.",
-    trait: "Pattern forming",
-    color: "rgba(107,187,138,0.55)",
-  },
-  {
-    name: "Operator",
-    range: "3 – 4.5h",
-    unit: "per day",
-    desc: "Reliable execution. You show up regardless of motivation. No filler days at this level.",
-    trait: "Reliable execution",
-    color: "rgba(91,141,217,0.65)",
-  },
-  {
-    name: "Architect",
-    range: "4.5 – 6h",
-    unit: "per day",
-    desc: "High-leverage output. Decisions are compounding. You are in the building phase of long-term work.",
-    trait: "Decisions compound",
-    color: "rgba(196,127,212,0.65)",
-  },
-  {
-    name: "Apex",
-    range: "6h+",
-    unit: "sustained",
-    desc: "Elite sustained output. This is not a sprint — it is a stable operating level. Identity is locked at this tier.",
-    trait: "Identity locked",
-    color: "rgba(217,167,91,0.7)",
-  },
-];
 
 const STEPS = [
   {
     num: "1",
     title: "Log a session",
-    desc: "Start the timer on any task. When you stop, that session is recorded with its actual duration. Sessions are tagged to a category automatically based on the project.",
+    desc: "Start the timer on any task. Your first logged session starts the 90-day cycle clock. Before that, no cycle is active.",
   },
   {
     num: "2",
-    title: "Daily total is computed",
-    desc: "At midnight, all sessions for that day are summed into your daily output figure. Rest days register as 0 — no penalty, just data.",
+    title: "Daily score is computed",
+    desc: `Hours are capped at ${RANKING_CONFIG.MAX_DAILY_HOURS}h, then scaled nonlinearly — (hours / ${RANKING_CONFIG.MAX_DAILY_HOURS})^${RANKING_CONFIG.HOUR_EXPONENT} — and multiplied by your compliance score for that day. Compliance is based on locked cycle rules only.`,
   },
   {
     num: "3",
-    title: "7-day weighted average is updated",
-    desc: "Your rolling average updates daily. The weighting formula applies a decay coefficient — recent output counts more. This is the single number your rank is derived from.",
+    title: "Time-weighted average is updated",
+    desc: `Each daily score is weighted by how recent it is. Entries decay with a half-life of ${RANKING_CONFIG.HALF_LIFE} days. The result: last month matters most, but the full 90 days still counts.`,
   },
   {
     num: "4",
+    title: "Consistency gate is applied",
+    desc: `If fewer than ${(RANKING_CONFIG.CONSISTENCY_THRESHOLD * 100).toFixed(0)}% of the last 30 days had ≥${RANKING_CONFIG.CONSISTENCY_MIN_HOURS}h logged, your rank score is halved. Consistency is measured on recent behavior, not full history.`,
+  },
+  {
+    num: "5",
     title: "Rank is assigned",
-    desc: "Your rolling average is compared against the five tier thresholds. The result is your current rank. It can move up or down daily as your average shifts.",
+    desc: "Your weighted score maps to a rank. Apex has an additional hard gate: you must currently be averaging the required hours and compliance — no coasting on old scores.",
   },
 ];
 
 const PHIL = [
   {
-    pill: "Rolling average",
+    pill: "Weighted 90-day window",
     good: true,
-    title: "Rewards trajectory, not perfection",
-    body: "A streak breaks the moment you miss a day. A rolling average absorbs one bad day without catastrophe. What matters is the direction of the line — not whether it's unbroken.",
+    title: "Memory with recency bias",
+    body: "Your full 90-day history counts, but recent weeks dominate. A bad start doesn't trap you — exponential decay lets you recover without erasing what you did.",
   },
   {
     pill: "Streaks",
     good: false,
-    title: "Punish recovery",
-    body: "Streak systems create an all-or-nothing psychology. One missed day can erase weeks of progress visually, which often triggers complete abandonment. That's a design flaw, not a motivation tool.",
+    title: "Binary and fragile",
+    body: "Streak systems collapse on one missed day. They create all-or-nothing psychology that triggers abandonment at the worst moment. That's a design flaw, not a motivation tool.",
   },
   {
-    pill: "Identity-based ranks",
+    pill: "Compliance locked per cycle",
     good: true,
-    title: "Classification over competition",
-    body: "You are not competing against other users. You are classified by your own output. \"Architect\" means you are operating at Architect level — that's a fact about you, not a trophy.",
+    title: "Fair scoring",
+    body: "Rules you set mid-cycle don't change your current ranking score. Compliance is measured against the ruleset that was active when the cycle started — no retroactive punishment.",
   },
   {
     pill: "Leaderboards",
     good: false,
     title: "External validation dependency",
-    body: "Leaderboards tie your sense of progress to other people's behavior. If everyone improves, your rank drops. Ascent's system is self-referential — your rank only reflects you.",
+    body: "Leaderboards tie your sense of progress to other people's behavior. Ascent's system is self-referential — your rank only reflects you, not the distribution of everyone else.",
   },
   {
-    pill: "No shame at any level",
+    pill: "Apex hard gate",
     good: true,
-    title: "Foundation is a valid operating state",
-    body: "If you're averaging 0.8h of deep work per day, Foundation is your current reality. That's the starting point, not a failure state. The rank names are descriptive, not judgmental.",
+    title: "Can't be inherited, only earned",
+    body: `Apex requires a current 14-day average of ≥${RANKING_CONFIG.APEX_HOURS}h and ≥${(RANKING_CONFIG.APEX_COMPLIANCE * 100).toFixed(0)}% compliance. Weighted history can get you close, but the gate confirms you're performing right now.`,
   },
   {
-    pill: "Resets every 90 days",
+    pill: "90-day cycle reset",
     good: true,
     title: "Prevents stagnation",
-    body: "Ranks reset on a 90-day cycle. This keeps the system forward-looking — you can't coast on past output indefinitely. Each cycle is a fresh classification based on recent behavior.",
+    body: "Every cycle starts fresh. You can't coast on a high rank forever. The reset forces re-qualification — but your history is preserved in analytics so no data is lost.",
   },
 ];
 
@@ -112,7 +75,7 @@ export default function RankingPage() {
   return (
     <>
       <nav
-        className="fixed top-0 left-0 right-0 z-100 px-6 md:px-15 py-[18px] flex items-center justify-between border-b"
+        className="fixed top-0 left-0 right-0 z-100 px-6 md:px-15 py-4.5 flex items-center justify-between border-b"
         style={{
           borderColor: "var(--border)",
           background: "rgba(10,10,12,0.92)",
@@ -135,8 +98,8 @@ export default function RankingPage() {
       </nav>
 
       {/* Hero */}
-      <div className="pt-[100px] md:pt-[140px] pb-12 md:pb-20 px-6 md:px-15 max-w-[800px] mx-auto text-center">
-        <div className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-[18px]">
+      <div className="pt-25 md:pt-35 pb-12 md:pb-20 px-6 md:px-15 max-w-200 mx-auto text-center">
+        <div className="text-[10px] tracking-[0.15em] uppercase text-text-secondary mb-4.5">
           The Rank System
         </div>
         <h1
@@ -150,23 +113,23 @@ export default function RankingPage() {
             competition.
           </em>
         </h1>
-        <p className="text-[13px] text-text-secondary leading-[1.9] tracking-[0.02em] max-w-[520px] mx-auto">
-          Your Ascent rank is a mirror, not a scoreboard. It reflects where you
-          are operating right now — based on what you actually did, not what you
-          planned.
+        <p className="text-[13px] text-text-secondary leading-[1.9] tracking-[0.02em] max-w-130 mx-auto">
+          Your Ascent rank is a weighted reflection of the last 90 days — with
+          recent weeks carrying the most weight. You can recover from a bad start.
+          You cannot fake a current performance.
         </p>
       </div>
 
-      <div className="max-w-[900px] mx-auto px-6 md:px-15 pb-16 md:pb-[100px]">
+      <div className="max-w-225 mx-auto px-6 md:px-15 pb-16 md:pb-25">
 
         {/* Tiers */}
         <div
           className="flex flex-col border rounded-xl overflow-hidden mb-16"
           style={{ borderColor: "var(--border)" }}
         >
-          {TIERS.map((t, i) => (
+          {RANKS.map((rank) => (
             <div
-              key={t.name}
+              key={rank.name}
               className="flex flex-col md:grid border-b last:border-b-0 hover:bg-surface transition-colors duration-150"
               style={{
                 gridTemplateColumns: "200px 1fr 1fr",
@@ -178,34 +141,36 @@ export default function RankingPage() {
                 className="px-5 py-5 md:p-7 flex flex-row md:flex-col items-center md:items-start gap-3 md:gap-2 md:border-r border-b md:border-b-0"
                 style={{ borderColor: "var(--border)" }}
               >
-                <div className="text-[18px] md:text-[22px] opacity-65 leading-none">▲</div>
+                <div
+                  className="text-[18px] md:text-[22px] leading-none"
+                  style={{ color: rank.color, opacity: 0.8 }}
+                >
+                  {rank.icon}
+                </div>
                 <div className="font-display text-[15px] md:text-[16px] font-bold tracking-[-0.01em]">
-                  {t.name}
+                  {rank.name}
                 </div>
                 <div
-                  className="h-[2px] w-8 md:w-12 rounded-[1px] md:mt-1 ml-auto md:ml-0"
-                  style={{ background: t.color }}
+                  className="h-0.5 w-8 md:w-12 rounded-[1px] md:mt-1 ml-auto md:ml-0"
+                  style={{ background: rank.color }}
                 />
               </div>
-              {/* Range */}
+              {/* Threshold */}
               <div
                 className="px-5 py-4 md:p-7 flex flex-row md:flex-col items-center md:items-start justify-between md:justify-center md:border-r border-b md:border-b-0"
                 style={{ borderColor: "var(--border)" }}
               >
                 <div className="font-display text-[16px] md:text-[18px] font-semibold tracking-[-0.02em] md:mb-1">
-                  {t.range}
+                  {rank.min === 0 ? "—" : `≥ ${(rank.min * 100).toFixed(0)}`}
                 </div>
                 <div className="text-[10px] text-text-secondary tracking-[0.06em] uppercase">
-                  {t.unit}
+                  {rank.min === 0 ? "no threshold" : "rank score"}
                 </div>
               </div>
               {/* Desc */}
               <div className="px-5 py-4 md:p-7 flex flex-col justify-center">
                 <div className="text-[12px] text-text-secondary leading-[1.8] tracking-[0.02em]">
-                  {t.desc}
-                </div>
-                <div className="text-[10px] text-text-secondary tracking-[0.06em] uppercase mt-2 opacity-60">
-                  {t.trait}
+                  {rank.desc}
                 </div>
               </div>
             </div>
@@ -220,30 +185,44 @@ export default function RankingPage() {
             How It's Calculated
           </div>
           <p className="text-[12px] text-text-secondary leading-[1.8] tracking-[0.02em] mb-8">
-            Your rank is derived from a single rolling metric — your 7-day
-            weighted average of deep work hours. No subjective scoring, no
-            manual input beyond your sessions.
+            Your rank is derived from a weighted score across a 90-day cycle.
+            Recent days dominate, but the full window counts. Compliance and hours
+            both factor in — neither alone is sufficient.
           </p>
 
+          {/* Formula block */}
           <div
             className="rounded-[10px] p-7 mb-5 border"
             style={{ background: "var(--surface)", borderColor: "var(--border)" }}
           >
-            <div className="text-[9px] tracking-[0.12em] uppercase text-text-secondary mb-3">
+            <div className="text-[9px] tracking-[0.12em] uppercase text-text-secondary mb-4">
               Core Formula
             </div>
-            <div className="font-display text-[18px] font-semibold tracking-[-0.01em]">
-              Rank = f(
-              <em className="font-serif font-light not-italic text-text-mid">
-                weighted 7-day avg
-              </em>{" "}
-              of logged hours)
-            </div>
-            <div className="text-[11px] text-text-secondary mt-2.5 leading-[1.7] tracking-[0.02em]">
-              Each of the last 7 days is weighted, with more recent days
-              carrying slightly more influence. This means a strong day today
-              has more impact than a strong day 6 days ago — rewarding recency
-              without punishing past slumps.
+            <div className="flex flex-col gap-2.5 font-mono text-[12px]" style={{ color: "var(--text-mid)" }}>
+              <div>
+                <span style={{ color: "var(--text-secondary)" }}>// step 1 — daily score</span>
+              </div>
+              <div>
+                effectiveHours = min(hoursWorked,{" "}
+                <span style={{ color: "var(--text-primary)" }}>{RANKING_CONFIG.MAX_DAILY_HOURS}</span>)
+              </div>
+              <div>
+                hourFactor = (effectiveHours /{" "}
+                <span style={{ color: "var(--text-primary)" }}>{RANKING_CONFIG.MAX_DAILY_HOURS}</span>)
+                <span style={{ color: "var(--text-primary)" }}>^{RANKING_CONFIG.HOUR_EXPONENT}</span>
+              </div>
+              <div>dailyScore = hourFactor × complianceScore</div>
+              <div className="mt-2">
+                <span style={{ color: "var(--text-secondary)" }}>// step 2 — time weight</span>
+              </div>
+              <div>
+                weight = 0.5 ^ (daysSinceEntry /{" "}
+                <span style={{ color: "var(--text-primary)" }}>{RANKING_CONFIG.HALF_LIFE}</span>)
+              </div>
+              <div className="mt-2">
+                <span style={{ color: "var(--text-secondary)" }}>// step 3 — weighted average</span>
+              </div>
+              <div>rankScore = Σ(dailyScore × weight) / Σ(weight)</div>
             </div>
           </div>
 
@@ -254,7 +233,7 @@ export default function RankingPage() {
                 className="flex gap-5 items-start rounded-lg p-5 border"
                 style={{ background: "var(--surface)", borderColor: "var(--border)" }}
               >
-                <div className="font-display text-[20px] font-bold text-text-secondary w-6 leading-none flex-shrink-0">
+                <div className="font-display text-[20px] font-bold text-text-secondary w-6 leading-none shrink-0">
                   {s.num}
                 </div>
                 <div>
@@ -272,14 +251,41 @@ export default function RankingPage() {
 
         <div className="h-px mb-16" style={{ background: "var(--border)" }} />
 
+        {/* Apex gate callout */}
+        <div
+          className="rounded-[10px] p-7 border mb-16"
+          style={{
+            background: "var(--surface)",
+            borderColor: "rgba(232,210,120,0.2)",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <span style={{ color: "rgba(232,210,120,0.8)", fontSize: 18 }}>◆</span>
+            <div className="font-display text-[14px] font-semibold tracking-[-0.01em]">
+              Apex Hard Gate
+            </div>
+          </div>
+          <p className="text-[12px] text-text-secondary leading-[1.8] tracking-[0.02em] mb-3">
+            Even if your weighted score reaches {(RANKS[RANKS.length - 1].min * 100).toFixed(0)}, Apex is
+            only assigned if your <strong className="text-text-primary font-medium">last 14 days</strong> average
+            ≥{RANKING_CONFIG.APEX_HOURS}h/day and ≥{(RANKING_CONFIG.APEX_COMPLIANCE * 100).toFixed(0)}%
+            compliance. Below either threshold, you're placed at Elite.
+          </p>
+          <p className="text-[11px] text-text-secondary leading-[1.7] tracking-[0.02em] opacity-75">
+            This prevents gaming the system with strong early history and recent coasting.
+            Apex is earned daily, not inherited.
+          </p>
+        </div>
+
+        <div className="h-px mb-16" style={{ background: "var(--border)" }} />
+
         {/* Philosophy */}
         <div className="mb-16">
           <div className="font-display text-[22px] font-bold tracking-[-0.02em] mb-2">
             Why It Works This Way
           </div>
           <p className="text-[12px] text-text-secondary leading-[1.8] tracking-[0.02em] mb-7">
-            Most productivity systems use streaks or point totals. Ascent
-            doesn't. Here's why each design decision was made deliberately.
+            Every design decision was made deliberately. Here's the reasoning.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {PHIL.map((p) => (
@@ -317,27 +323,27 @@ export default function RankingPage() {
 
         <div className="h-px mb-16" style={{ background: "var(--border)" }} />
 
-        {/* Reset */}
+        {/* Cycle reset */}
         <div
           className="rounded-[10px] p-8 border"
           style={{ background: "var(--surface)", borderColor: "var(--border)" }}
         >
           <div className="font-display text-[15px] font-semibold mb-2.5 tracking-[-0.01em]">
-            The 90-Day Reset
+            The {RANKING_CONFIG.CYCLE_DAYS}-Day Cycle
           </div>
           <p className="text-[13px] text-text-secondary leading-[1.9] tracking-[0.02em] mb-2.5">
-            Every 90 days, your rank resets to be recalculated from scratch.
-            This is intentional. It prevents a high rank from becoming a resting
-            identity that requires no maintenance.
+            The cycle timer starts on your first logged session — not on signup.
+            Every {RANKING_CONFIG.CYCLE_DAYS} days after that, all ranking data resets and the next
+            cycle begins on your next activity.
           </p>
           <p className="text-[13px] text-text-secondary leading-[1.9] tracking-[0.02em] mb-2.5">
-            Your historical rank data is preserved in analytics — you can see
-            what tier you held in previous cycles. The reset affects only the
-            live dashboard display and the active classification.
+            Compliance rules are snapshotted at cycle start. Any rules added
+            mid-cycle only take effect in the next cycle. This keeps scoring
+            consistent and fair across the full window.
           </p>
           <p className="text-[13px] text-text-secondary leading-[1.9] tracking-[0.02em]">
-            The reset date is shown on your dashboard so you always know how far
-            into the current cycle you are.
+            Historical rank data is preserved in analytics. The reset affects
+            only the live rank display and active cycle scoring.
           </p>
         </div>
       </div>

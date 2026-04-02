@@ -35,7 +35,7 @@ export class ComplianceService {
     startDate: string,
     endDate: string,
   ): Promise<ComplianceEntryEntity[]> {
-    return this.entriesRepository.findBy({
+    return await this.entriesRepository.findBy({
       userId,
       date: Between(startDate, endDate),
     });

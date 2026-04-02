@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { TaskEntity } from './entities/task.entity';
@@ -26,7 +26,7 @@ export class TasksController {
     return this.tasksService.create(req.user.userId, body);
   }
 
-  @Patch(':id')
+  @Post(':id/update')
   async updateTask(
     @Request() req,
     @Param('id') id: string,
@@ -35,7 +35,7 @@ export class TasksController {
     return this.tasksService.update(id, req.user.userId, body);
   }
 
-  @Delete(':id')
+  @Post(':id/delete')
   async deleteTask(@Request() req, @Param('id') id: string) {
     await this.tasksService.delete(id, req.user.userId);
   }
@@ -45,7 +45,7 @@ export class TasksController {
     return this.tasksService.createSubtask(taskId, body.title);
   }
 
-  @Patch(':id/subtasks/:subtaskId')
+  @Post(':id/subtasks/:subtaskId/update')
   async updateSubtask(
     @Param('id') taskId: string,
     @Param('subtaskId') subtaskId: string,
@@ -54,7 +54,7 @@ export class TasksController {
     return this.tasksService.updateSubtask(subtaskId, taskId, body);
   }
 
-  @Delete(':id/subtasks/:subtaskId')
+  @Post(':id/subtasks/:subtaskId/delete')
   async deleteSubtask(@Param('id') taskId: string, @Param('subtaskId') subtaskId: string) {
     await this.tasksService.deleteSubtask(subtaskId, taskId);
   }

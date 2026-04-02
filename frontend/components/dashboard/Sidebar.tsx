@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTimerStore } from "@/lib/timerStore";
 
 const NAV = [{ label: "Dashboard", href: "/dashboard" }];
 
@@ -18,15 +19,48 @@ const NAV2 = [
   { label: "Advisory", href: "/dashboard/advisory" },
 ];
 
+function parseStartMs(s: string): number {
+  if (!s.endsWith("Z") && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+    return new Date(s + "Z").getTime();
+  }
+  return new Date(s).getTime();
+}
+
+function formatElapsed(startedAt: string): string {
+  const totalSeconds = Math.max(
+    0,
+    Math.floor((Date.now() - parseStartMs(startedAt)) / 1000),
+  );
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 export default function Sidebar({
   onClose,
   user,
+  onStop,
 }: {
   onClose?: () => void;
   user?: { firstName: string; lastName: string } | null;
+  onStop?: () => void;
 }) {
   const pathname = usePathname();
   const [tasksOpen, setTasksOpen] = useState(true);
+  const { activeEntry, activeTask } = useTimerStore();
+  const [elapsedDisplay, setElapsedDisplay] = useState("0:00");
+
+  useEffect(() => {
+    if (!activeEntry) return;
+    const tick = () => setElapsedDisplay(formatElapsed(activeEntry.startedAt));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [activeEntry]);
 
   return (
     <aside
@@ -146,6 +180,65 @@ export default function Sidebar({
           />
         ))}
       </nav>
+
+      {/* Timer indicator */}
+      {activeEntry && activeTask && (
+        <div
+          className="px-4.5 py-3 border-t"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{
+                background: "rgba(107,187,138,0.8)",
+                boxShadow: "0 0 5px rgba(107,187,138,0.4)",
+                animation: "pulse 1.2s infinite",
+              }}
+            />
+            <span
+              className="text-[11px] tracking-[0.01em] truncate"
+              style={{ color: "var(--text-secondary)", maxWidth: 110 }}
+            >
+              {activeTask.title}
+            </span>
+          </div>
+          <div className="flex items-center justify-between pl-3.5">
+            <div
+              className="text-[13px] font-semibold"
+              style={{
+                color: "rgba(107,187,138,0.85)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              {elapsedDisplay}
+            </div>
+            {onStop && (
+              <button
+                onClick={onStop}
+                className="text-[9px] px-2 py-1 rounded-[4px] border tracking-[0.04em] transition-colors"
+                style={{
+                  borderColor: "rgba(217,107,107,0.25)",
+                  color: "rgba(217,107,107,0.65)",
+                  fontFamily: "var(--font-mono)",
+                  background: "none",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(217,107,107,0.5)";
+                  (e.currentTarget as HTMLElement).style.color = "rgba(217,107,107,0.95)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(217,107,107,0.25)";
+                  (e.currentTarget as HTMLElement).style.color = "rgba(217,107,107,0.65)";
+                }}
+              >
+                Stop
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div

@@ -46,7 +46,7 @@ export default function RanksSection() {
           variants={staggerContainer}
           initial="hidden"
           animate={inView ? "visible" : "hidden"}
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 mt-10 md:mt-14"
+          className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5 mt-10 md:mt-14"
         >
           {RANKS.map((rank) => (
             <motion.div
@@ -88,7 +88,7 @@ export default function RanksSection() {
                 {rank.name}
               </div>
               <div className="text-[10px] text-text-secondary tracking-[0.04em] mb-3">
-                {rank.range}
+                {rank.min === 0 ? "starting point" : `score ≥ ${(rank.min * 100).toFixed(0)}`}
               </div>
               <div className="text-[10px] text-text-secondary leading-[1.7] tracking-[0.02em]">
                 {rank.desc}

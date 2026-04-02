@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   Post,
@@ -27,7 +26,7 @@ export class ComplianceController {
     return this.complianceService.createRule(req.user.userId, body.name);
   }
 
-  @Delete('rules/:id')
+  @Post('rules/:id/delete')
   async deleteRule(@Request() req, @Param('id') ruleId: string) {
     return this.complianceService.deleteRule(ruleId, req.user.userId);
   }

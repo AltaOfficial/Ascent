@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 function getTokenFromCookie(): string | null {
   if (typeof document === "undefined") return null;
@@ -6,26 +6,26 @@ function getTokenFromCookie(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-export function setTokenCookie(token: string) {
+export function setTokenCookie(token: string): void {
   document.cookie = `access_token=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
 }
 
-export function clearTokenCookie() {
+export function clearTokenCookie(): void {
   document.cookie = "access_token=; path=/; max-age=0; SameSite=Strict";
 }
 
-export async function apiFetch<T = any>(
+export async function apiFetch<TResponse>(
   path: string,
-  opts: RequestInit = {},
-): Promise<T> {
-  const accessToken = getTokenFromCookie();
+  options: RequestInit = {},
+): Promise<TResponse> {
+  const token = getTokenFromCookie();
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...opts,
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...opts.headers,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
     },
   });
 
@@ -34,5 +34,9 @@ export async function apiFetch<T = any>(
     throw new Error(errorText);
   }
 
-  return response.json();
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+    return undefined as unknown as TResponse;
+  }
+
+  return response.json() as Promise<TResponse>;
 }

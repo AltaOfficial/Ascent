@@ -1,52 +1,40 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { format } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, startOfWeek, addDays } from "date-fns";
 import HoursChart from "@/components/dashboard/HoursChart";
 import TaskInbox from "@/components/dashboard/TaskInbox";
 import { DriftDonut, MiniLine } from "@/components/dashboard/ClientCharts";
+import { Card, CardLabel } from "@/components/dashboard/Card";
 import { apiFetch } from "@/lib/api";
+import { RANKS } from "@/lib/constants";
 
 type HoursEntry = { date: string; hours: number };
 type ComplianceRule = { id: string; name: string };
 type ComplianceEntry = { ruleId: string; date: string; checked: boolean };
 
-function getDateRange(range: "7d" | "30d" | "3m"): { start: Date; end: Date; days: number } {
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  const start = new Date();
+type DateRange = "7d" | "30d" | "3m";
+
+function buildDateRange(range: DateRange): { start: Date; end: Date; days: number } {
+  const end = endOfDay(new Date());
   const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
-  start.setDate(start.getDate() - (days - 1));
-  start.setHours(0, 0, 0, 0);
+  const start = startOfDay(subDays(new Date(), days - 1));
   return { start, end, days };
 }
 
-function Card({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
-  return (
-    <div
-      className={`rounded-[10px] border p-5 flex flex-col justify-between min-h-27.5 ${className ?? ""}`}
-      style={{ background: "var(--surface)", borderColor: "var(--border)", ...style }}
-    >
-      {children}
-    </div>
-  );
+function formatDateParam(date: Date): string {
+  return format(date, "yyyy-MM-dd");
 }
 
-function CardLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-[10px] tracking-[0.08em] uppercase mb-3" style={{ color: "var(--text-secondary)" }}>
-      {children}
-    </div>
-  );
-}
+const UNRANKED = RANKS[0];
 
 export default function DashboardPage() {
-  const today = format(new Date(), "EEEE, MMMM d, yyyy");
+  const todayLabel = format(new Date(), "EEEE, MMMM d, yyyy");
   const [hoursData, setHoursData] = useState<HoursEntry[]>([]);
   const [compliancePct, setCompliancePct] = useState<number | null>(null);
   const [complianceDelta, setComplianceDelta] = useState<number | null>(null);
 
-  const fetchHours = useCallback(async (range: "7d" | "30d" | "3m") => {
+  const fetchHours = useCallback(async (range: DateRange) => {
     try {
       const data = await apiFetch<HoursEntry[]>("/users/hours", {
         method: "POST",
@@ -56,15 +44,9 @@ export default function DashboardPage() {
     } catch {}
   }, []);
 
-  const fetchCompliance = useCallback(async (range: "7d" | "30d" | "3m") => {
+  const fetchCompliance = useCallback(async (range: DateRange) => {
     try {
-      const { start, end, days } = getDateRange(range);
-      const fmt = (d: Date) => d.toISOString().slice(0, 10);
-
-      const [rules, entries] = await Promise.all([
-        apiFetch<ComplianceRule[]>("/compliance/rules"),
-        apiFetch<ComplianceEntry[]>(`/compliance/entries?start=${fmt(start)}&end=${fmt(end)}`),
-      ]);
+      const rules = await apiFetch<ComplianceRule[]>("/compliance/rules");
 
       if (rules.length === 0) {
         setCompliancePct(null);
@@ -72,26 +54,61 @@ export default function DashboardPage() {
         return;
       }
 
-      const total = rules.length * days;
-      const checked = entries.filter((e) => e.checked).length;
-      const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+      let currentPct: number;
+      let priorPct: number;
 
-      // Prior period for delta
-      const priorEnd = new Date(start);
-      priorEnd.setDate(priorEnd.getDate() - 1);
-      priorEnd.setHours(23, 59, 59, 999);
-      const priorStart = new Date(priorEnd);
-      priorStart.setDate(priorStart.getDate() - (days - 1));
-      priorStart.setHours(0, 0, 0, 0);
+      if (range === "7d") {
+        // Match the compliance page: calendar week (Mon–today), denominator = days elapsed
+        const today = new Date();
+        const monday = startOfWeek(today, { weekStartsOn: 1 });
+        const dayOfWeek = today.getDay();
+        const daysElapsed = (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + 1;
+        const weekStart = formatDateParam(monday);
+        const weekEnd = formatDateParam(addDays(monday, 6));
 
-      const priorEntries = await apiFetch<ComplianceEntry[]>(
-        `/compliance/entries?start=${fmt(priorStart)}&end=${fmt(priorEnd)}`
-      );
-      const priorChecked = priorEntries.filter((e) => e.checked).length;
-      const priorPct = total > 0 ? Math.round((priorChecked / total) * 100) : 0;
+        const entries = await apiFetch<ComplianceEntry[]>(
+          `/compliance/entries?start=${weekStart}&end=${weekEnd}`
+        );
+        const activeDates = Array.from({ length: daysElapsed }, (_, i) =>
+          formatDateParam(addDays(monday, i))
+        );
+        const totalPossible = rules.length * daysElapsed;
+        const checkedCount = entries.filter((e) => e.checked && activeDates.includes(e.date)).length;
+        currentPct = totalPossible > 0 ? Math.round((checkedCount / totalPossible) * 100) : 0;
 
-      setCompliancePct(pct);
-      setComplianceDelta(pct - priorPct);
+        // Prior week: same number of elapsed days
+        const priorMonday = subDays(monday, 7);
+        const priorWeekStart = formatDateParam(priorMonday);
+        const priorWeekEnd = formatDateParam(addDays(priorMonday, 6));
+        const priorActiveDates = Array.from({ length: daysElapsed }, (_, i) =>
+          formatDateParam(addDays(priorMonday, i))
+        );
+        const priorEntries = await apiFetch<ComplianceEntry[]>(
+          `/compliance/entries?start=${priorWeekStart}&end=${priorWeekEnd}`
+        );
+        const priorChecked = priorEntries.filter((e) => e.checked && priorActiveDates.includes(e.date)).length;
+        priorPct = totalPossible > 0 ? Math.round((priorChecked / totalPossible) * 100) : 0;
+      } else {
+        const { start, end, days } = buildDateRange(range);
+        const totalPossible = rules.length * days;
+
+        const entries = await apiFetch<ComplianceEntry[]>(
+          `/compliance/entries?start=${formatDateParam(start)}&end=${formatDateParam(end)}`
+        );
+        const checkedCount = entries.filter((e) => e.checked).length;
+        currentPct = totalPossible > 0 ? Math.round((checkedCount / totalPossible) * 100) : 0;
+
+        const priorEnd = endOfDay(subDays(start, 1));
+        const priorStart = startOfDay(subDays(priorEnd, days - 1));
+        const priorEntries = await apiFetch<ComplianceEntry[]>(
+          `/compliance/entries?start=${formatDateParam(priorStart)}&end=${formatDateParam(priorEnd)}`
+        );
+        const priorChecked = priorEntries.filter((e) => e.checked).length;
+        priorPct = totalPossible > 0 ? Math.round((priorChecked / totalPossible) * 100) : 0;
+      }
+
+      setCompliancePct(currentPct);
+      setComplianceDelta(currentPct - priorPct);
     } catch {
       setCompliancePct(null);
       setComplianceDelta(null);
@@ -99,7 +116,7 @@ export default function DashboardPage() {
   }, []);
 
   const handlePeriodChange = useCallback(
-    (range: "7d" | "30d" | "3m") => {
+    (range: DateRange) => {
       fetchHours(range);
       fetchCompliance(range);
     },
@@ -122,15 +139,15 @@ export default function DashboardPage() {
           Dashboard
         </h1>
         <span className="text-[11px] tracking-[0.03em]" style={{ color: "var(--text-secondary)" }}>
-          {today}
+          {todayLabel}
         </span>
       </div>
 
       {/* Hero grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-6">
 
-        {/* Rank */}
-        <Card style={{ justifyContent: "flex-start", gap: 0 }}>
+        {/* Rank — defaults to lowest rank when no data */}
+        <Card style={{ justifyContent: "flex-start", gap: 0, minHeight: undefined }}>
           <CardLabel>Ascent Rank</CardLabel>
           <div className="flex items-center gap-3.5">
             <div
@@ -138,17 +155,18 @@ export default function DashboardPage() {
               style={{
                 background: "var(--surface-2)",
                 borderColor: "var(--border-mid)",
-                opacity: 0.4,
+                color: UNRANKED.color,
+                opacity: 0.5,
               }}
             >
-              ◆
+              {UNRANKED.icon}
             </div>
             <div className="flex-1">
               <div
                 className="text-[15px] font-semibold tracking-[-0.01em]"
                 style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
               >
-                —
+                {UNRANKED.name}
               </div>
               <div className="text-[10px] tracking-[0.02em] mt-0.5" style={{ color: "var(--text-secondary)" }}>
                 no data yet
@@ -164,7 +182,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Compliance */}
-        <Card>
+        <Card style={{ minHeight: undefined }}>
           <CardLabel>Compliance %</CardLabel>
           <div>
             <div
@@ -173,7 +191,10 @@ export default function DashboardPage() {
             >
               {compliancePct !== null ? `${compliancePct}%` : "—"}
             </div>
-            <div className="text-[11px] tracking-[0.02em] mt-1" style={{ color: complianceDelta !== null && complianceDelta < 0 ? "rgba(217,107,107,0.8)" : "var(--text-mid)" }}>
+            <div
+              className="text-[11px] tracking-[0.02em] mt-1"
+              style={{ color: complianceDelta !== null && complianceDelta < 0 ? "rgba(217,107,107,0.8)" : "var(--text-mid)" }}
+            >
               {complianceDelta !== null
                 ? `${complianceDelta >= 0 ? "+" : ""}${complianceDelta}% vs prior period`
                 : "no rules set"}
@@ -182,13 +203,13 @@ export default function DashboardPage() {
         </Card>
 
         {/* Drift Allocation */}
-        <Card style={{ justifyContent: "flex-start" }}>
+        <Card style={{ justifyContent: "flex-start", minHeight: undefined }}>
           <CardLabel>Drift Allocation</CardLabel>
           <DriftDonut />
         </Card>
 
         {/* Rolling Average */}
-        <Card style={{ justifyContent: "flex-start" }}>
+        <Card style={{ justifyContent: "flex-start", minHeight: undefined }}>
           <div className="flex items-start justify-between mb-1">
             <CardLabel>Rolling Average</CardLabel>
           </div>

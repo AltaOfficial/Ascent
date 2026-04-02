@@ -2,16 +2,26 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity, ProjectViewType } from './entities/project.entity';
+import { ProjectSectionEntity } from './entities/project-section.entity';
+import { ProjectTagEntity } from './entities/project-tag.entity';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     @InjectRepository(ProjectEntity)
     private readonly projectRepository: Repository<ProjectEntity>,
+    @InjectRepository(ProjectSectionEntity)
+    private readonly sectionRepository: Repository<ProjectSectionEntity>,
+    @InjectRepository(ProjectTagEntity)
+    private readonly tagRepository: Repository<ProjectTagEntity>,
   ) {}
 
   async findAllByUserId(userId: string): Promise<ProjectEntity[]> {
     return await this.projectRepository.findBy({ userId });
+  }
+
+  async findById(id: string, userId: string): Promise<ProjectEntity | null> {
+    return await this.projectRepository.findOneBy({ id, userId });
   }
 
   async create(
@@ -19,12 +29,14 @@ export class ProjectsService {
     name: string,
     viewType?: ProjectViewType,
     categoryTag?: string,
+    color?: string,
   ): Promise<ProjectEntity> {
     const project = this.projectRepository.create({
       userId,
       name,
       viewType: viewType ?? ProjectViewType.LIST,
       categoryTag: categoryTag ?? undefined,
+      color: color ?? undefined,
     });
     return await this.projectRepository.save(project);
   }
@@ -32,7 +44,7 @@ export class ProjectsService {
   async update(
     id: string,
     userId: string,
-    updates: Partial<Pick<ProjectEntity, 'name' | 'viewType' | 'categoryTag'>>,
+    updates: Partial<Pick<ProjectEntity, 'name' | 'viewType' | 'categoryTag' | 'color'>>,
   ): Promise<ProjectEntity | null> {
     await this.projectRepository.update({ id, userId }, updates);
     return await this.projectRepository.findOneBy({ id });
@@ -40,5 +52,58 @@ export class ProjectsService {
 
   async delete(id: string, userId: string): Promise<void> {
     await this.projectRepository.delete({ id, userId });
+  }
+
+  // Sections
+
+  async getSections(projectId: string, userId: string): Promise<ProjectSectionEntity[]> {
+    return await this.sectionRepository.findBy({ projectId, userId });
+  }
+
+  async createSection(
+    projectId: string,
+    userId: string,
+    name: string,
+    order: number,
+  ): Promise<ProjectSectionEntity> {
+    const section = this.sectionRepository.create({ projectId, userId, name, order });
+    return await this.sectionRepository.save(section);
+  }
+
+  async updateSection(
+    id: string,
+    userId: string,
+    updates: Partial<Pick<ProjectSectionEntity, 'name' | 'order'>>,
+  ): Promise<ProjectSectionEntity | null> {
+    await this.sectionRepository.update({ id, userId }, updates);
+    return await this.sectionRepository.findOneBy({ id });
+  }
+
+  async deleteSection(id: string, userId: string): Promise<void> {
+    await this.sectionRepository.delete({ id, userId });
+  }
+
+  // Tags
+
+  async getTags(projectId: string, userId: string): Promise<ProjectTagEntity[]> {
+    return await this.tagRepository.findBy({ projectId, userId });
+  }
+
+  async createTag(projectId: string, userId: string, name: string, color: string): Promise<ProjectTagEntity> {
+    const tag = this.tagRepository.create({ projectId, userId, name, color });
+    return await this.tagRepository.save(tag);
+  }
+
+  async updateTag(
+    id: string,
+    userId: string,
+    updates: Partial<Pick<ProjectTagEntity, 'name' | 'color'>>,
+  ): Promise<ProjectTagEntity | null> {
+    await this.tagRepository.update({ id, userId }, updates);
+    return await this.tagRepository.findOneBy({ id });
+  }
+
+  async deleteTag(id: string, userId: string): Promise<void> {
+    await this.tagRepository.delete({ id, userId });
   }
 }

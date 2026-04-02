@@ -1,0 +1,4 @@
+{
+  "typescript.tsdk": "backend/node_modules/typescript/lib",
+  "js/ts.tsdk.path": "backend/node_modules/typescript/lib"
+}

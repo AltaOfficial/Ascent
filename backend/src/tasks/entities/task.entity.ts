@@ -33,11 +33,14 @@ export class TaskEntity {
   @Column({ type: 'enum', enum: TaskStatus, default: TaskStatus.TODO })
   status: TaskStatus;
 
-  @Column({ type: 'enum', enum: TaskPriority, nullable: true })
+  @Column({ type: 'enum', enum: TaskPriority, default: TaskPriority.LOW })
   priority: TaskPriority;
 
   @Column({ nullable: true })
   projectId: string;
+
+  @Column({ nullable: true })
+  sectionId: string;
 
   @Column()
   userId: string;

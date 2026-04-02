@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import React from "react";
+import { MemSection, MemField } from "@/components/dashboard/MemoryModal";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type Role = "user" | "assistant";
-type Message = { role: Role; content: string };
+type MessageRole = "user" | "assistant";
+type Message = { role: MessageRole; content: string };
 type Thread = { id: number; name: string; messages: Message[] };
 
 type Memory = {
@@ -25,11 +27,11 @@ const DEFAULT_THREADS: Thread[] = [
   { id: 3, name: "Engineering Growth", messages: [] },
 ];
 
-const HINTS: Record<string, string[]> = {
-  "General Strategy":    ["Am I allocating correctly?", "What should I focus on this week?", "What am I lacking?"],
-  "SaaS – Ascent":       ["Is this task high leverage?", "What is my bottleneck?", "Am I drifting?"],
-  "School Planning":     ["Am I behind?", "How should I prep for exams?", "Is school getting enough time?"],
-  "Engineering Growth":  ["Where should I skill up?", "Are my sessions improving?", "Am I building the right things?"],
+const THREAD_HINTS: Record<string, string[]> = {
+  "General Strategy":   ["Am I allocating correctly?", "What should I focus on this week?", "What am I lacking?"],
+  "SaaS – Ascent":      ["Is this task high leverage?", "What is my bottleneck?", "Am I drifting?"],
+  "School Planning":    ["Am I behind?", "How should I prep for exams?", "Is school getting enough time?"],
+  "Engineering Growth": ["Where should I skill up?", "Are my sessions improving?", "Am I building the right things?"],
 };
 
 const DEFAULT_MEMORY: Memory = {
@@ -43,7 +45,7 @@ const DEFAULT_MEMORY: Memory = {
 };
 
 // ── System prompt builder ──────────────────────────────────────────────────
-function buildSystem(memory: Memory, threadName: string) {
+function buildSystemPrompt(memory: Memory, threadName: string): string {
   return `You are a private strategic advisor inside a personal operating system called Ascent. You analyze a user's real data — time allocation, task completion, session patterns — and give precise, direct guidance.
 
 PERSONA:
@@ -75,7 +77,7 @@ When evaluating a task for leverage, check: Is the product pre-revenue? Are core
 When checking allocation, compare against the declared priority order. Flag misalignment without drama.`;
 }
 
-const BRIEF_PROMPT = `Generate a weekly strategic brief. Use this format exactly:
+const WEEKLY_BRIEF_PROMPT = `Generate a weekly strategic brief. Use this format exactly:
 
 WEEKLY REVIEW
 
@@ -96,104 +98,107 @@ Keep each section to 1–2 lines maximum. No motivation. No praise. Operator ton
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function AdvisoryPage() {
   const [threads, setThreads] = useState<Thread[]>(DEFAULT_THREADS);
-  const [activeId, setActiveId] = useState(0);
+  const [activeThreadId, setActiveThreadId] = useState(0);
   const [memory, setMemory] = useState<Memory>(DEFAULT_MEMORY);
-  const [memOpen, setMemOpen] = useState(false);
-  const [memDraft, setMemDraft] = useState<Memory>(DEFAULT_MEMORY);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [nextId, setNextId] = useState(4);
+  const [memoryModalOpen, setMemoryModalOpen] = useState(false);
+  const [memoryDraft, setMemoryDraft] = useState<Memory>(DEFAULT_MEMORY);
+  const [inputText, setInputText] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [nextThreadId, setNextThreadId] = useState(4);
   const [newThreadName, setNewThreadName] = useState("");
   const [addingThread, setAddingThread] = useState(false);
 
-  const chatRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const addInputRef = useRef<HTMLInputElement>(null);
+  const addThreadInputRef = useRef<HTMLInputElement>(null);
 
-  const thread = threads.find(t => t.id === activeId)!;
-  const hints = HINTS[thread.name] ?? HINTS["General Strategy"];
-
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [thread.messages, loading]);
+  const activeThread = threads.find((thread) => thread.id === activeThreadId)!;
+  const activeThreadHints = THREAD_HINTS[activeThread.name] ?? THREAD_HINTS["General Strategy"];
 
   useEffect(() => {
-    if (addingThread) addInputRef.current?.focus();
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [activeThread.messages, isLoading]);
+
+  useEffect(() => {
+    if (addingThread) addThreadInputRef.current?.focus();
   }, [addingThread]);
 
-  function autoResize() {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 160) + "px";
+  function autoResizeInput() {
+    const inputElement = inputRef.current;
+    if (!inputElement) return;
+    inputElement.style.height = "auto";
+    inputElement.style.height = Math.min(inputElement.scrollHeight, 160) + "px";
   }
 
-  function updateThread(id: number, updater: (t: Thread) => Thread) {
-    setThreads(ts => ts.map(t => t.id === id ? updater(t) : t));
+  function updateThreadMessages(threadId: number, updater: (thread: Thread) => Thread) {
+    setThreads((prev) => prev.map((thread) => thread.id === threadId ? updater(thread) : thread));
   }
 
-  const send = useCallback(async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
+  const sendMessage = useCallback(async (text: string) => {
+    const trimmedText = text.trim();
+    if (!trimmedText || isLoading) return;
 
-    setInput("");
+    setInputText("");
     if (inputRef.current) inputRef.current.style.height = "auto";
 
-    const userMsg: Message = { role: "user", content: trimmed };
-    updateThread(activeId, t => ({ ...t, messages: [...t.messages, userMsg] }));
-    setLoading(true);
+    const userMessage: Message = { role: "user", content: trimmedText };
+    updateThreadMessages(activeThreadId, (thread) => ({ ...thread, messages: [...thread.messages, userMessage] }));
+    setIsLoading(true);
 
     try {
-      const currentMsgs = [...thread.messages, userMsg];
-      const res = await fetch("/api/advisor", {
+      const currentMessages = [...activeThread.messages, userMessage];
+      const response = await fetch("/api/advisor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          system: buildSystem(memory, thread.name),
-          messages: currentMsgs.map(m => ({ role: m.role, content: m.content })),
+          system: buildSystemPrompt(memory, activeThread.name),
+          messages: currentMessages.map((msg) => ({ role: msg.role, content: msg.content })),
         }),
       });
-      const data = await res.json();
-      const reply: Message = { role: "assistant", content: data.content ?? "No response." };
-      updateThread(activeId, t => ({ ...t, messages: [...t.messages, reply] }));
+      const responseData = await response.json();
+      const advisorReply: Message = { role: "assistant", content: responseData.content ?? "No response." };
+      updateThreadMessages(activeThreadId, (thread) => ({ ...thread, messages: [...thread.messages, advisorReply] }));
     } catch {
-      updateThread(activeId, t => ({
-        ...t,
-        messages: [...t.messages, { role: "assistant", content: "Connection error. Check API access." }],
+      updateThreadMessages(activeThreadId, (thread) => ({
+        ...thread,
+        messages: [...thread.messages, { role: "assistant", content: "Connection error. Check API access." }],
       }));
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [loading, activeId, thread, memory]);
+  }, [isLoading, activeThreadId, activeThread, memory]);
 
-  function sendBrief() {
-    send(BRIEF_PROMPT);
+  function sendWeeklyBrief() {
+    sendMessage(WEEKLY_BRIEF_PROMPT);
   }
 
-  function addThread() {
+  function addNewThread() {
     const name = newThreadName.trim();
     if (!name) return;
-    const id = nextId;
-    setThreads(ts => [...ts, { id, name, messages: [] }]);
-    setNextId(n => n + 1);
-    setActiveId(id);
+    const newId = nextThreadId;
+    setThreads((prev) => [...prev, { id: newId, name, messages: [] }]);
+    setNextThreadId((prev) => prev + 1);
+    setActiveThreadId(newId);
     setNewThreadName("");
     setAddingThread(false);
   }
 
-  function openMemory() {
-    setMemDraft({ ...memory });
-    setMemOpen(true);
+  function openMemoryModal() {
+    setMemoryDraft({ ...memory });
+    setMemoryModalOpen(true);
   }
-  function saveMemory() {
-    setMemory({ ...memDraft });
-    setMemOpen(false);
+
+  function saveMemoryDraft() {
+    setMemory({ ...memoryDraft });
+    setMemoryModalOpen(false);
   }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
-      {/* ── Top bar ── */}
+      {/* Top bar */}
       <div className="shrink-0 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center justify-between px-6 pt-4 mb-3.5">
           <span
@@ -204,22 +209,22 @@ export default function AdvisoryPage() {
           </span>
           <div className="flex gap-2">
             <button
-              onClick={openMemory}
+              onClick={openMemoryModal}
               title="Project Memory"
-              className="w-7 h-7 flex items-center justify-center rounded-[6px] border text-[12px] transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-md border text-[12px] transition-colors"
               style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "none" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-hi)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
             >
               ◆
             </button>
             <button
-              onClick={sendBrief}
+              onClick={sendWeeklyBrief}
               title="Weekly Brief"
-              className="w-7 h-7 flex items-center justify-center rounded-[6px] border text-[12px] transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-md border text-[12px] transition-colors"
               style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "none" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-hi)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
             >
               ○
             </button>
@@ -228,21 +233,21 @@ export default function AdvisoryPage() {
 
         {/* Thread tabs */}
         <div className="flex overflow-x-auto px-6 gap-0" style={{ scrollbarWidth: "none" }}>
-          {threads.map(t => (
+          {threads.map((thread) => (
             <button
-              key={t.id}
-              onClick={() => setActiveId(t.id)}
+              key={thread.id}
+              onClick={() => setActiveThreadId(thread.id)}
               className="shrink-0 text-[11px] tracking-[0.03em] px-3.5 py-2 border-b-[1.5px] transition-colors whitespace-nowrap relative"
               style={{
-                color: t.id === activeId ? "var(--text-primary)" : "var(--text-secondary)",
-                borderColor: t.id === activeId ? "var(--text-primary)" : "transparent",
+                color: thread.id === activeThreadId ? "var(--text-primary)" : "var(--text-secondary)",
+                borderColor: thread.id === activeThreadId ? "var(--text-primary)" : "transparent",
                 background: "none",
                 bottom: -1,
               }}
-              onMouseEnter={e => { if (t.id !== activeId) (e.currentTarget as HTMLElement).style.color = "var(--text-mid)"; }}
-              onMouseLeave={e => { if (t.id !== activeId) (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+              onMouseEnter={(e) => { if (thread.id !== activeThreadId) (e.currentTarget as HTMLElement).style.color = "var(--text-mid)"; }}
+              onMouseLeave={(e) => { if (thread.id !== activeThreadId) (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
             >
-              {t.name}
+              {thread.name}
             </button>
           ))}
 
@@ -250,16 +255,19 @@ export default function AdvisoryPage() {
           {addingThread ? (
             <div className="flex items-center shrink-0 px-1 pb-0.5">
               <input
-                ref={addInputRef}
+                ref={addThreadInputRef}
                 value={newThreadName}
-                onChange={e => setNewThreadName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") addThread(); if (e.key === "Escape") { setAddingThread(false); setNewThreadName(""); } }}
+                onChange={(e) => setNewThreadName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addNewThread();
+                  if (e.key === "Escape") { setAddingThread(false); setNewThreadName(""); }
+                }}
                 placeholder="Thread name…"
                 className="text-[11px] px-2 py-1 rounded-[5px] border outline-none w-32"
                 style={{ background: "var(--surface-raised)", borderColor: "var(--border-mid)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
               />
               <button
-                onClick={addThread}
+                onClick={addNewThread}
                 className="ml-1.5 text-[10px] px-2 py-1 rounded-[5px] transition-opacity hover:opacity-80"
                 style={{ background: "var(--text-primary)", color: "var(--bg)", fontFamily: "var(--font-mono)", border: "none" }}
               >
@@ -285,13 +293,13 @@ export default function AdvisoryPage() {
         </div>
       </div>
 
-      {/* ── Chat area ── */}
+      {/* Chat area */}
       <div
-        ref={chatRef}
+        ref={chatScrollRef}
         className="flex-1 overflow-y-auto px-6 pt-7"
         style={{ scrollbarWidth: "thin", scrollbarColor: "var(--border) transparent" }}
       >
-        {thread.messages.length === 0 && !loading ? (
+        {activeThread.messages.length === 0 && !isLoading ? (
           <div className="text-center pt-16 opacity-40">
             <div className="text-[18px] mb-2.5">◆</div>
             <div
@@ -304,37 +312,37 @@ export default function AdvisoryPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-7 pb-4">
-            {thread.messages.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "text-right" : ""}>
+            {activeThread.messages.map((message, index) => (
+              <div key={index} className={message.role === "user" ? "text-right" : ""}>
                 <div
                   className="text-[10px] tracking-[0.07em] uppercase mb-1.75"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  {m.role === "user" ? "You" : "Advisor"}
+                  {message.role === "user" ? "You" : "Advisor"}
                 </div>
                 <div
                   className="text-[13px] leading-[1.8] tracking-[0.01em] whitespace-pre-wrap"
-                  style={{ color: m.role === "user" ? "var(--text-mid)" : "var(--text-primary)" }}
+                  style={{ color: message.role === "user" ? "var(--text-mid)" : "var(--text-primary)" }}
                 >
-                  {m.content}
+                  {message.content}
                 </div>
               </div>
             ))}
 
             {/* Typing indicator */}
-            {loading && (
+            {isLoading && (
               <div>
                 <div className="text-[10px] tracking-[0.07em] uppercase mb-1.75" style={{ color: "var(--text-secondary)" }}>
                   Advisor
                 </div>
                 <div className="flex gap-1 items-center h-5">
-                  {[0, 1, 2].map(i => (
+                  {[0, 1, 2].map((dotIndex) => (
                     <span
-                      key={i}
+                      key={dotIndex}
                       className="w-1 h-1 rounded-full"
                       style={{
                         background: "var(--text-secondary)",
-                        animation: `pulse 1.2s infinite ${i * 0.2}s`,
+                        animation: `pulse 1.2s infinite ${dotIndex * 0.2}s`,
                       }}
                     />
                   ))}
@@ -345,14 +353,14 @@ export default function AdvisoryPage() {
         )}
       </div>
 
-      {/* ── Input area ── */}
+      {/* Input area */}
       <div className="shrink-0 px-6 pt-4 pb-6 border-t" style={{ borderColor: "var(--border)" }}>
         <div className="relative">
           <textarea
             ref={inputRef}
-            value={input}
-            onChange={e => { setInput(e.target.value); autoResize(); }}
-            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
+            value={inputText}
+            onChange={(e) => { setInputText(e.target.value); autoResizeInput(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(inputText); } }}
             placeholder="Ask the advisor…"
             rows={1}
             className="w-full rounded-[9px] border px-4 py-3 pr-12 text-[13px] leading-[1.6] tracking-[0.01em] outline-none resize-none transition-colors overflow-y-auto"
@@ -365,27 +373,25 @@ export default function AdvisoryPage() {
               maxHeight: 160,
               scrollbarWidth: "none",
             }}
-            onFocus={e => (e.currentTarget.style.borderColor = "var(--border-mid)")}
-            onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-mid)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
           />
           <button
-            onClick={() => send(input)}
-            disabled={loading || !input.trim()}
-            className="absolute right-2.5 bottom-2.5 w-7 h-7 flex items-center justify-center rounded-[6px] border text-[13px] transition-colors"
+            onClick={() => sendMessage(inputText)}
+            disabled={isLoading || !inputText.trim()}
+            className="absolute right-2.5 bottom-2.5 w-7 h-7 flex items-center justify-center rounded-md border text-[13px] transition-colors"
             style={{
               borderColor: "var(--border-mid)",
               color: "var(--text-mid)",
               background: "none",
-              opacity: loading || !input.trim() ? 0.3 : 1,
+              opacity: isLoading || !inputText.trim() ? 0.3 : 1,
             }}
-            onMouseEnter={e => {
-              if (!loading && input.trim()) {
-                (e.currentTarget as HTMLElement).style.borderColor = "var(--border-hi)";
+            onMouseEnter={(e) => {
+              if (!isLoading && inputText.trim()) {
                 (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
               }
             }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-mid)";
+            onMouseLeave={(e) => {
               (e.currentTarget as HTMLElement).style.color = "var(--text-mid)";
             }}
           >
@@ -395,37 +401,40 @@ export default function AdvisoryPage() {
 
         {/* Hint pills */}
         <div className="flex gap-1.5 mt-2.5 flex-wrap">
-          {hints.map(h => (
+          {activeThreadHints.map((hint) => (
             <button
-              key={h}
-              onClick={() => { setInput(h); inputRef.current?.focus(); }}
+              key={hint}
+              onClick={() => { setInputText(hint); inputRef.current?.focus(); }}
               className="text-[10px] tracking-[0.04em] px-2.5 py-1 rounded-full border transition-colors"
               style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "none", fontFamily: "var(--font-mono)" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-mid)"; (e.currentTarget as HTMLElement).style.color = "var(--text-mid)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-mid)"; (e.currentTarget as HTMLElement).style.color = "var(--text-mid)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
             >
-              {h}
+              {hint}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── Memory modal ── */}
-      {memOpen && (
+      {/* Memory modal */}
+      {memoryModalOpen && (
         <div
           className="fixed inset-0 z-[100] flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.75)" }}
-          onClick={() => setMemOpen(false)}
+          onClick={() => setMemoryModalOpen(false)}
         >
           <div
             className="w-full max-w-[720px] max-h-[75vh] overflow-y-auto rounded-t-[14px] border-t border-l border-r p-6"
             style={{ background: "var(--surface)", borderColor: "var(--border-mid)", scrollbarWidth: "thin" }}
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-start justify-between mb-5">
               <div>
-                <div className="text-[14px] font-semibold tracking-[-0.01em]" style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}>
+                <div
+                  className="text-[14px] font-semibold tracking-[-0.01em]"
+                  style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+                >
                   Project Memory
                 </div>
                 <div className="text-[10px] mt-0.5 tracking-[0.03em]" style={{ color: "var(--text-secondary)" }}>
@@ -433,7 +442,7 @@ export default function AdvisoryPage() {
                 </div>
               </div>
               <button
-                onClick={() => setMemOpen(false)}
+                onClick={() => setMemoryModalOpen(false)}
                 className="w-7 h-7 flex items-center justify-center rounded-[5px] border text-[16px] transition-colors"
                 style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "none" }}
               >
@@ -447,9 +456,9 @@ export default function AdvisoryPage() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <MemField label="Current stage">
                     <select
-                      value={memDraft.stage}
-                      onChange={e => setMemDraft(d => ({ ...d, stage: e.target.value }))}
-                      className="w-full rounded-[7px] border px-3 py-2 text-[12px] outline-none"
+                      value={memoryDraft.stage}
+                      onChange={(e) => setMemoryDraft((prev) => ({ ...prev, stage: e.target.value }))}
+                      className="w-full rounded-lg border px-3 py-2 text-[12px] outline-none"
                       style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
                     >
                       <option>Pre-revenue</option>
@@ -459,13 +468,13 @@ export default function AdvisoryPage() {
                   </MemField>
                   <MemField label="Strategic priority order">
                     <input
-                      value={memDraft.priority}
-                      onChange={e => setMemDraft(d => ({ ...d, priority: e.target.value }))}
+                      value={memoryDraft.priority}
+                      onChange={(e) => setMemoryDraft((prev) => ({ ...prev, priority: e.target.value }))}
                       placeholder="e.g. School, SaaS, Fitness"
-                      className="w-full rounded-[7px] border px-3 py-2 text-[12px] outline-none"
+                      className="w-full rounded-lg border px-3 py-2 text-[12px] outline-none"
                       style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-                      onFocus={e => (e.currentTarget.style.borderColor = "var(--border-hi)")}
-                      onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-hi)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                     />
                   </MemField>
                 </div>
@@ -474,13 +483,13 @@ export default function AdvisoryPage() {
               <MemSection label="Active Projects">
                 <MemField label="Projects & status">
                   <textarea
-                    value={memDraft.projects}
-                    onChange={e => setMemDraft(d => ({ ...d, projects: e.target.value }))}
+                    value={memoryDraft.projects}
+                    onChange={(e) => setMemoryDraft((prev) => ({ ...prev, projects: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-[7px] border px-3 py-2 text-[12px] outline-none resize-none leading-relaxed"
+                    className="w-full rounded-lg border px-3 py-2 text-[12px] outline-none resize-none leading-relaxed"
                     style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-                    onFocus={e => (e.currentTarget.style.borderColor = "var(--border-hi)")}
-                    onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-hi)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                   />
                 </MemField>
               </MemSection>
@@ -488,24 +497,24 @@ export default function AdvisoryPage() {
               <MemSection label="Bottlenecks & Constraints">
                 <MemField label="Current bottleneck">
                   <input
-                    value={memDraft.bottleneck}
-                    onChange={e => setMemDraft(d => ({ ...d, bottleneck: e.target.value }))}
+                    value={memoryDraft.bottleneck}
+                    onChange={(e) => setMemoryDraft((prev) => ({ ...prev, bottleneck: e.target.value }))}
                     placeholder="e.g. Onboarding conversion, GPA, focus discipline"
-                    className="w-full rounded-[7px] border px-3 py-2 text-[12px] outline-none"
+                    className="w-full rounded-lg border px-3 py-2 text-[12px] outline-none"
                     style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-                    onFocus={e => (e.currentTarget.style.borderColor = "var(--border-hi)")}
-                    onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-hi)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                   />
                 </MemField>
                 <MemField label="Declared constraints">
                   <textarea
-                    value={memDraft.constraints}
-                    onChange={e => setMemDraft(d => ({ ...d, constraints: e.target.value }))}
+                    value={memoryDraft.constraints}
+                    onChange={(e) => setMemoryDraft((prev) => ({ ...prev, constraints: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-[7px] border px-3 py-2 text-[12px] outline-none resize-none leading-relaxed"
+                    className="w-full rounded-lg border px-3 py-2 text-[12px] outline-none resize-none leading-relaxed"
                     style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-                    onFocus={e => (e.currentTarget.style.borderColor = "var(--border-hi)")}
-                    onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-hi)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                   />
                 </MemField>
               </MemSection>
@@ -514,24 +523,24 @@ export default function AdvisoryPage() {
                 <div className="grid grid-cols-2 gap-2.5">
                   <MemField label="7-day avg deep work hrs">
                     <input
-                      value={memDraft.avgHours}
-                      onChange={e => setMemDraft(d => ({ ...d, avgHours: e.target.value }))}
+                      value={memoryDraft.avgHours}
+                      onChange={(e) => setMemoryDraft((prev) => ({ ...prev, avgHours: e.target.value }))}
                       placeholder="e.g. 3.8h"
-                      className="w-full rounded-[7px] border px-3 py-2 text-[12px] outline-none"
+                      className="w-full rounded-lg border px-3 py-2 text-[12px] outline-none"
                       style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-                      onFocus={e => (e.currentTarget.style.borderColor = "var(--border-hi)")}
-                      onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-hi)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                     />
                   </MemField>
                   <MemField label="High-value % (last 30d)">
                     <input
-                      value={memDraft.highValuePct}
-                      onChange={e => setMemDraft(d => ({ ...d, highValuePct: e.target.value }))}
+                      value={memoryDraft.highValuePct}
+                      onChange={(e) => setMemoryDraft((prev) => ({ ...prev, highValuePct: e.target.value }))}
                       placeholder="e.g. 62%"
-                      className="w-full rounded-[7px] border px-3 py-2 text-[12px] outline-none"
+                      className="w-full rounded-lg border px-3 py-2 text-[12px] outline-none"
                       style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-                      onFocus={e => (e.currentTarget.style.borderColor = "var(--border-hi)")}
-                      onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--border-hi)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                     />
                   </MemField>
                 </div>
@@ -541,17 +550,17 @@ export default function AdvisoryPage() {
             {/* Footer */}
             <div className="flex justify-end gap-2 mt-5 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
               <button
-                onClick={() => setMemOpen(false)}
-                className="px-4 py-1.75 text-[11px] rounded-[7px] border transition-colors"
+                onClick={() => setMemoryModalOpen(false)}
+                className="px-4 py-1.75 text-[11px] rounded-lg border transition-colors"
                 style={{ color: "var(--text-mid)", borderColor: "var(--border)", fontFamily: "var(--font-mono)", background: "none" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-hi)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-mid)"; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-mid)"; }}
               >
                 Cancel
               </button>
               <button
-                onClick={saveMemory}
-                className="px-5 py-1.75 text-[11px] font-medium rounded-[7px] transition-opacity hover:opacity-80"
+                onClick={saveMemoryDraft}
+                className="px-5 py-1.75 text-[11px] font-medium rounded-lg transition-opacity hover:opacity-80"
                 style={{ background: "var(--text-primary)", color: "var(--bg)", fontFamily: "var(--font-mono)", border: "none" }}
               >
                 Save Memory
@@ -567,25 +576,6 @@ export default function AdvisoryPage() {
           40% { opacity: 1; }
         }
       `}</style>
-    </div>
-  );
-}
-
-// ── Sub-components ─────────────────────────────────────────────────────────
-function MemSection({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-[10px] tracking-[0.09em] uppercase mb-2.5" style={{ color: "var(--text-secondary)" }}>{label}</div>
-      <div className="flex flex-col gap-2.5">{children}</div>
-    </div>
-  );
-}
-
-function MemField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-[11px] tracking-[0.03em] mb-1" style={{ color: "var(--text-secondary)" }}>{label}</label>
-      {children}
     </div>
   );
 }

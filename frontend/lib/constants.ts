@@ -1,6 +1,32 @@
+// ─── Ranking tuning knobs ────────────────────────────────────────────────────
+export const RANKING_CONFIG = {
+  /** Cycle length in days */
+  CYCLE_DAYS: 90,
+  /** Daily hours cap before scoring */
+  MAX_DAILY_HOURS: 8,
+  /** Nonlinear hour scaling exponent: higher = harder for low-hour users */
+  HOUR_EXPONENT: 1.5,
+  /** Exponential decay half-life in days: lower = more recency bias */
+  HALF_LIFE: 30,
+  /** Minimum consistency rate over last 30 days before penalty */
+  CONSISTENCY_THRESHOLD: 0.7,
+  /** Minimum daily hours threshold for "active" consistency check */
+  CONSISTENCY_MIN_HOURS: 2,
+  /** Penalty multiplier when consistency gate fails */
+  CONSISTENCY_PENALTY: 0.5,
+  /** Apex gate: minimum avg hours over last 14 days */
+  APEX_HOURS: 6,
+  /** Apex gate: minimum avg compliance score over last 14 days */
+  APEX_COMPLIANCE: 0.9,
+} as const;
+
+// ─── Rank definitions ─────────────────────────────────────────────────────────
 export interface Rank {
   name: string;
-  range: string;
+  /** Minimum rankScore (0–1) required to reach this rank */
+  min: number;
+  /** Approximate daily hours range for display purposes */
+  hours: string;
   color: string;
   desc: string;
   icon: string;
@@ -8,38 +34,59 @@ export interface Rank {
 
 export const RANKS: Rank[] = [
   {
-    name: "Foundation",
-    range: "0 – 1.5h / day",
-    color: "rgba(200,200,210,0.3)",
-    desc: "Establishing the baseline. Starting is the work.",
+    name: "Unranked",
+    min: 0.0,
+    hours: "no activity",
+    color: "rgba(200,200,210,0.25)",
+    desc: "No activity recorded yet. Start your first session.",
     icon: "▽",
   },
   {
     name: "Builder",
-    range: "1.5 – 3h / day",
+    min: 0.15,
+    hours: "1.5 – 3h / day",
     color: "rgba(107,187,138,0.5)",
     desc: "Consistent output. Pattern forming.",
     icon: "△",
   },
   {
     name: "Operator",
-    range: "3 – 4.5h / day",
+    min: 0.35,
+    hours: "3 – 4.5h / day",
     color: "rgba(91,141,217,0.6)",
     desc: "Reliable execution. No filler days.",
     icon: "◇",
   },
   {
-    name: "Architect",
-    range: "4.5 – 6h / day",
+    name: "Executor",
+    min: 0.55,
+    hours: "4.5 – 5.5h / day",
     color: "rgba(196,127,212,0.6)",
-    desc: "High-leverage. Decisions compound.",
+    desc: "High output, high compliance. The standard.",
+    icon: "▷",
+  },
+  {
+    name: "Performer",
+    min: 0.70,
+    hours: "5.5 – 6.5h / day",
+    color: "rgba(91,180,180,0.65)",
+    desc: "Top-tier consistency. Decisions compound.",
     icon: "▲",
   },
   {
+    name: "Elite",
+    min: 0.82,
+    hours: "6.5 – 7h / day",
+    color: "rgba(217,167,91,0.65)",
+    desc: "Sustained elite output. Near the ceiling.",
+    icon: "◈",
+  },
+  {
     name: "Apex",
-    range: "6h+ sustained",
-    color: "rgba(217,167,91,0.7)",
-    desc: "Sustained elite output. Identity locked.",
+    min: 0.92,
+    hours: "7h+ sustained",
+    color: "rgba(232,210,120,0.8)",
+    desc: "Peak performance. Must be earned daily.",
     icon: "◆",
   },
 ];

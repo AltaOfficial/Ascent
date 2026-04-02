@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "./Sidebar";
 import { apiFetch } from "@/lib/api";
+import { useTimerStore, type ActiveEntry } from "@/lib/timerStore";
+
+type Task = { id: string; title: string; estimatedMinutes?: number | null };
 
 export default function DashboardShell({
   children,
@@ -16,11 +19,40 @@ export default function DashboardShell({
     lastName: string;
   } | null>(null);
 
+  const { activeEntry, setActive, clear } = useTimerStore();
+
   useEffect(() => {
     apiFetch<{ firstName: string; lastName: string }>("/users/me")
       .then(setUser)
       .catch(() => {});
-  }, []);
+
+    // Hydrate timer store from server on mount
+    apiFetch<ActiveEntry | null>("/time-entries/active")
+      .then(async (entry) => {
+        if (!entry) return;
+        const tasks = await apiFetch<Task[]>("/tasks");
+        const task = tasks.find((t) => t.id === entry.taskId);
+        if (task) {
+          setActive(entry, {
+            id: task.id,
+            title: task.title,
+            estimatedMinutes: task.estimatedMinutes ?? null,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [setActive]);
+
+  async function handleStopTimer() {
+    if (!activeEntry) return;
+    try {
+      await apiFetch("/time-entries/stop", {
+        method: "POST",
+        body: JSON.stringify({ timeEntryId: activeEntry.id }),
+      });
+    } catch {}
+    clear();
+  }
 
   return (
     <div
@@ -42,7 +74,7 @@ export default function DashboardShell({
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <Sidebar onClose={() => setSidebarOpen(false)} user={user} />
+        <Sidebar onClose={() => setSidebarOpen(false)} user={user} onStop={handleStopTimer} />
       </div>
 
       {/* Main */}
@@ -88,6 +120,7 @@ export default function DashboardShell({
 
         <main className="flex-1 overflow-hidden flex flex-col">{children}</main>
       </div>
+
     </div>
   );
 }
