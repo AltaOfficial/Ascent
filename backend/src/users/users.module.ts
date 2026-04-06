@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { TimeEntriesModule } from 'src/time-entries/time-entries.module';
+import { TimeEntriesModule } from '../time-entries/time-entries.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserEntity]), TimeEntriesModule],

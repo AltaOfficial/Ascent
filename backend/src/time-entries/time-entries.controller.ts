@@ -1,8 +1,8 @@
 import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { TimeEntriesService } from './time-entries.service';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { TasksService } from 'src/tasks/tasks.service';
-import { TaskStatus } from 'src/tasks/entities/task.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TasksService } from '../tasks/tasks.service';
+import { TaskStatus } from '../tasks/entities/task.entity';
 
 @UseGuards(JwtAuthGuard)
 @Controller('time-entries')

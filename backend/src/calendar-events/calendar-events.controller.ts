@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { CalendarEventsService } from './calendar-events.service';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CalendarEventEntity } from './entities/calendar-event.entity';
 
 @UseGuards(JwtAuthGuard)

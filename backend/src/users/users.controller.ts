@@ -7,8 +7,8 @@ import {
   Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { TimeEntriesService } from 'src/time-entries/time-entries.service';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { TimeEntriesService } from '../time-entries/time-entries.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('users')

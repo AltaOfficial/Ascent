@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { SignupDto } from './dtos/signup.dto';
-import { UserDto } from 'src/users/dtos/user.dto';
-import { InvitesService } from 'src/invites/invites.service';
+import { UserDto } from '../users/dtos/user.dto';
+import { InvitesService } from '../invites/invites.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
