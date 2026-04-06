@@ -28,4 +28,15 @@ export class TimeEntriesController {
   async getActiveTimer(@Request() req) {
     return this.timeEntriesService.getActive(req.user.userId);
   }
+
+  @Post('totals')
+  async getTaskTotals(
+    @Request() req,
+    @Body() body: { taskIds: string[] },
+  ) {
+    return this.timeEntriesService.getTotalsByTaskIds(
+      body.taskIds ?? [],
+      req.user.userId,
+    );
+  }
 }

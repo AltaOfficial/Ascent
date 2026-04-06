@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useTimerStore } from "@/lib/timerStore";
 import {
@@ -13,7 +13,7 @@ import {
 import { TimerBar } from "@/components/dashboard/TimerBar";
 import { type Task } from "@/components/dashboard/TaskRow";
 
-type Project = { id: string; name: string; color: string | null };
+type Project = { id: string; name: string; color: string | null; viewType: string };
 type Section = { id: string; name: string; order: number; projectId: string };
 
 function fmtDue(dateStr: string | null) {
@@ -24,11 +24,14 @@ function fmtDue(dateStr: string | null) {
   today.setHours(0, 0, 0, 0);
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
   let label: string;
-  if (diff < 0) label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (diff < 0)
+    label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   else if (diff === 0) label = "Today";
   else if (diff === 1) label = "Tomorrow";
-  else if (diff <= 6) label = d.toLocaleDateString("en-US", { weekday: "long" });
-  else label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  else if (diff <= 6)
+    label = d.toLocaleDateString("en-US", { weekday: "long" });
+  else
+    label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   if (diff < 0) return { label, cls: "overdue" };
   if (diff === 0) return { label, cls: "today" };
   if (diff === 1) return { label, cls: "tomorrow" };
@@ -37,11 +40,35 @@ function fmtDue(dateStr: string | null) {
 }
 
 function dueStyle(cls: string) {
-  if (cls === "overdue") return { background: "rgba(217,107,107,0.08)", borderColor: "rgba(217,107,107,0.2)", color: "rgba(217,107,107,0.85)" };
-  if (cls === "today") return { background: "rgba(107,187,138,0.08)", borderColor: "rgba(107,187,138,0.2)", color: "rgba(107,187,138,0.9)" };
-  if (cls === "tomorrow") return { background: "rgba(230,180,70,0.08)", borderColor: "rgba(230,180,70,0.2)", color: "rgba(230,180,70,0.9)" };
-  if (cls === "week") return { background: "rgba(147,107,200,0.08)", borderColor: "rgba(147,107,200,0.2)", color: "rgba(147,107,200,0.85)" };
-  return { background: "var(--surface-raised)", borderColor: "var(--border)", color: "rgba(150,150,160,0.7)" };
+  if (cls === "overdue")
+    return {
+      background: "rgba(217,107,107,0.08)",
+      borderColor: "rgba(217,107,107,0.2)",
+      color: "rgba(217,107,107,0.85)",
+    };
+  if (cls === "today")
+    return {
+      background: "rgba(107,187,138,0.08)",
+      borderColor: "rgba(107,187,138,0.2)",
+      color: "rgba(107,187,138,0.9)",
+    };
+  if (cls === "tomorrow")
+    return {
+      background: "rgba(230,180,70,0.08)",
+      borderColor: "rgba(230,180,70,0.2)",
+      color: "rgba(230,180,70,0.9)",
+    };
+  if (cls === "week")
+    return {
+      background: "rgba(147,107,200,0.08)",
+      borderColor: "rgba(147,107,200,0.2)",
+      color: "rgba(147,107,200,0.85)",
+    };
+  return {
+    background: "var(--surface-raised)",
+    borderColor: "var(--border)",
+    color: "rgba(150,150,160,0.7)",
+  };
 }
 
 function fmtMinutes(m: number | null | undefined) {
@@ -55,6 +82,7 @@ function fmtMinutes(m: number | null | undefined) {
 export default function ListPage() {
   const params = useParams();
   const projectId = params.id as string;
+  const router = useRouter();
 
   const [project, setProject] = useState<Project | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
@@ -90,6 +118,15 @@ export default function ListPage() {
         method: "POST",
         body: JSON.stringify({ timeEntryId: current.id }),
       });
+      const totals = await apiFetch<Record<string, number>>("/time-entries/totals", {
+        method: "POST",
+        body: JSON.stringify({ taskIds: [current.taskId] }),
+      }).catch(() => ({} as Record<string, number>));
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === current.taskId ? { ...t, actualMinutes: totals[t.id] ?? t.actualMinutes } : t,
+        ),
+      );
     } catch {}
     clear();
   }
@@ -104,11 +141,23 @@ export default function ListPage() {
       }),
       apiFetch<ProjectTag[]>(`/projects/${projectId}/tags`),
     ])
-      .then(([proj, secs, taskList, tags]) => {
+      .then(async ([proj, secs, taskList, tags]) => {
+        if (proj.viewType === "kanban") {
+          router.replace(`/dashboard/tasks/projects/${projectId}`);
+          return;
+        }
         setProject(proj);
         setSections(secs.sort((a, b) => a.order - b.order));
-        setTasks(taskList);
         setProjectTags(tags);
+        const ids = taskList.map((t) => t.id);
+        let totals: Record<string, number> = {};
+        if (ids.length) {
+          totals = await apiFetch<Record<string, number>>("/time-entries/totals", {
+            method: "POST",
+            body: JSON.stringify({ taskIds: ids }),
+          }).catch(() => ({}));
+        }
+        setTasks(taskList.map((t) => ({ ...t, actualMinutes: totals[t.id] ?? null })));
       })
       .catch(() => {});
   }, [projectId]);
@@ -153,12 +202,10 @@ export default function ListPage() {
   async function handleStartTimer(taskId: string) {
     const { activeEntry: current } = useTimerStore.getState();
     if (current) {
-      try {
-        await apiFetch("/time-entries/stop", {
-          method: "POST",
-          body: JSON.stringify({ timeEntryId: current.id }),
-        });
-      } catch {}
+      await apiFetch("/time-entries/stop", {
+        method: "POST",
+        body: JSON.stringify({ timeEntryId: current.id }),
+      });
     }
     if (current?.taskId === taskId) {
       clear();
@@ -391,7 +438,10 @@ export default function ListPage() {
                   fontFamily: "var(--font-mono)",
                 }}
               />
-              <div className="relative w-6 h-6 rounded-full shrink-0 cursor-pointer" style={{ background: newTagColor }}>
+              <div
+                className="relative w-6 h-6 rounded-full shrink-0 cursor-pointer"
+                style={{ background: newTagColor }}
+              >
                 <input
                   type="color"
                   value={newTagColor}
@@ -424,6 +474,7 @@ export default function ListPage() {
         >
           <Link
             href={`/dashboard/tasks/projects/${projectId}`}
+            onClick={() => apiFetch(`/projects/${projectId}/update`, { method: "POST", body: JSON.stringify({ viewType: "kanban" }) }).catch(() => {})}
             className="text-[10px] tracking-[0.04em] px-2.5 py-1.5 rounded-t border-b-2 transition-colors"
             style={{
               color: "var(--text-secondary)",
@@ -435,6 +486,7 @@ export default function ListPage() {
           </Link>
           <Link
             href={`/dashboard/tasks/projects/${projectId}/list`}
+            onClick={() => apiFetch(`/projects/${projectId}/update`, { method: "POST", body: JSON.stringify({ viewType: "list" }) }).catch(() => {})}
             className="text-[10px] tracking-[0.04em] px-2.5 py-1.5 rounded-t border-b-2 transition-colors"
             style={{
               color: "var(--text-primary)",
@@ -530,9 +582,18 @@ export default function ListPage() {
                 <button
                   onClick={() => handleDeleteSection(sec.id)}
                   className="text-[14px] w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover/secheader:opacity-100 transition-opacity shrink-0"
-                  style={{ color: "var(--text-secondary)", background: "none", border: "none", lineHeight: 1 }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(217,107,107,0.85)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+                  style={{
+                    color: "var(--text-secondary)",
+                    background: "none",
+                    border: "none",
+                    lineHeight: 1,
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "rgba(217,107,107,0.85)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "var(--text-secondary)")
+                  }
                   title="Delete section"
                 >
                   ×
@@ -631,14 +692,18 @@ export default function ListPage() {
                               ≡
                             </span>
                           )}
-                          {task.status !== "done" && fmtMinutes(task.estimatedMinutes) && (
-                            <span
-                              className="text-[11px] opacity-45 flex items-center gap-1 shrink-0"
-                              style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}
-                            >
-                              ⏱ {fmtMinutes(task.estimatedMinutes)}
-                            </span>
-                          )}
+                          {task.status !== "done" &&
+                            fmtMinutes(task.estimatedMinutes) && (
+                              <span
+                                className="text-[11px] opacity-45 flex items-center gap-1 shrink-0"
+                                style={{
+                                  color: "var(--text-secondary)",
+                                  fontFamily: "var(--font-mono)",
+                                }}
+                              >
+                                ⏱ {fmtMinutes(task.estimatedMinutes)}
+                              </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-1.75 shrink-0 pt-0.5">
                           {task.priority === "high" && (
@@ -661,42 +726,46 @@ export default function ListPage() {
                       </div>
 
                       {/* Actions row */}
-                      {task.status !== "done" && <div
-                        className="flex items-center justify-end gap-1.25 mt-1.25 min-h-6 opacity-0 group-hover/row:opacity-100 transition-opacity"
-                        style={{ ...(isRunning ? { opacity: 1 } : {}) }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartTimer(task.id);
-                          }}
-                          className="flex items-center gap-1 text-[10px] tracking-[0.04em] px-2.5 py-1 rounded-[5px] border whitespace-nowrap transition-all"
-                          style={{
-                            fontFamily: "var(--font-mono)",
-                            background: isRunning
-                              ? "rgba(107,187,138,0.07)"
-                              : "none",
-                            borderColor: isRunning
-                              ? "rgba(107,187,138,0.4)"
-                              : "var(--border)",
-                            color: isRunning
-                              ? "rgba(107,187,138,0.9)"
-                              : "var(--text-secondary)",
-                          }}
+                      {task.status !== "done" && (
+                        <div
+                          className="flex items-center justify-end gap-1.25 mt-1.25 min-h-6 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                          style={{ ...(isRunning ? { opacity: 1 } : {}) }}
                         >
-                          {isRunning ? (
-                            <>
-                              <span
-                                className="w-1.25 h-1.25 rounded-full inline-block mr-0.5"
-                                style={{ background: "rgba(107,187,138,0.8)" }}
-                              />
-                              Running
-                            </>
-                          ) : (
-                            "▶ Start"
-                          )}
-                        </button>
-                      </div>}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartTimer(task.id);
+                            }}
+                            className="flex items-center gap-1 text-[10px] tracking-[0.04em] px-2.5 py-1 rounded-[5px] border whitespace-nowrap transition-all"
+                            style={{
+                              fontFamily: "var(--font-mono)",
+                              background: isRunning
+                                ? "rgba(107,187,138,0.07)"
+                                : "none",
+                              borderColor: isRunning
+                                ? "rgba(107,187,138,0.4)"
+                                : "var(--border)",
+                              color: isRunning
+                                ? "rgba(107,187,138,0.9)"
+                                : "var(--text-secondary)",
+                            }}
+                          >
+                            {isRunning ? (
+                              <>
+                                <span
+                                  className="w-1.25 h-1.25 rounded-full inline-block mr-0.5"
+                                  style={{
+                                    background: "rgba(107,187,138,0.8)",
+                                  }}
+                                />
+                                Running
+                              </>
+                            ) : (
+                              "▶ Start"
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

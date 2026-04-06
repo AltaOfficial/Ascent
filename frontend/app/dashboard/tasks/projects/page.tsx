@@ -10,6 +10,15 @@ const COLORS = [
   "#c47fd4", "#d9d9d9", "#888890",
 ];
 
+const CATEGORY_COLORS: Record<string, string> = {
+  School:   "#6b9ed9",
+  SaaS:     "#7b6ef6",
+  Skills:   "#6bbb8a",
+  Revenue:  "#d9c46b",
+  Personal: "#c47fd4",
+  Other:    "#888890",
+};
+
 type Project = {
   id: string;
   name: string;
@@ -92,82 +101,120 @@ export default function ProjectsPage() {
       <div className="max-w-185 mx-auto px-8 py-13">
 
         {/* Header */}
-        <div className="flex justify-between items-end mb-10">
-          <h1
-            className="text-[22px] font-semibold tracking-[-0.03em]"
-            style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
-          >
-            Projects
-          </h1>
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <h1
+              className="text-[22px] font-semibold tracking-[-0.03em]"
+              style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+            >
+              Projects
+            </h1>
+            {!loading && projects.length > 0 && (
+              <p className="text-[11px] tracking-[0.03em] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                {projects.length} project{projects.length !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
           <button
             onClick={openCreate}
-            className="text-[13px] font-medium px-4 py-2 rounded-[7px] transition-opacity hover:opacity-80"
+            className="flex items-center gap-1.5 text-[12px] tracking-[0.04em] px-4 py-2 rounded-[7px] transition-opacity hover:opacity-80"
             style={{ background: "var(--text-primary)", color: "var(--bg)", fontFamily: "var(--font-mono)" }}
           >
-            + New Project
+            <span className="text-[15px] leading-none">+</span> New Project
           </button>
         </div>
 
-        {/* Column headers */}
-        <div
-          className="flex items-center gap-3.5 pb-3 border-b mb-0 px-2"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="w-3 shrink-0" />
-          <span className="flex-1 text-[11px] tracking-[0.06em] uppercase" style={{ color: "var(--text-secondary)" }}>Name</span>
-          <div className="flex items-center gap-5 shrink-0 pr-8">
-            <span className="text-[11px] tracking-[0.06em] uppercase hidden sm:block w-20 text-right" style={{ color: "var(--text-secondary)" }}>Category</span>
-          </div>
-        </div>
-
-        {/* Project rows */}
+        {/* Project list */}
         {loading ? (
-          <div className="py-16 text-center opacity-30">
-            <p className="text-[14px] tracking-[0.04em]" style={{ color: "var(--text-secondary)" }}>Loading...</p>
+          <div className="py-20 flex flex-col items-center gap-2" style={{ color: "var(--text-secondary)" }}>
+            <div className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-1 h-1 rounded-full animate-pulse"
+                  style={{ background: "var(--border-mid)", animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
           </div>
         ) : projects.length === 0 ? (
-          <div className="py-16 text-center opacity-30">
-            <p className="text-[14px] tracking-[0.04em]" style={{ color: "var(--text-secondary)" }}>No projects yet.</p>
+          <div className="py-20 flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-lg border flex items-center justify-center mb-1" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+              <span style={{ color: "var(--text-secondary)", fontSize: 16 }}>◫</span>
+            </div>
+            <p className="text-[13px] tracking-[0.01em]" style={{ color: "var(--text-secondary)" }}>No projects yet</p>
+            <button
+              onClick={openCreate}
+              className="text-[11px] tracking-[0.04em] px-3.5 py-1.5 rounded-md border transition-colors mt-1"
+              style={{ borderColor: "var(--border-mid)", color: "var(--text-primary)", fontFamily: "var(--font-mono)", background: "none" }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-hi)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-mid)")}
+            >
+              Create your first project
+            </button>
           </div>
         ) : (
-          <div>
-            {projects.map(p => (
-              <div
-                key={p.id}
-                className="flex items-center gap-3.5 border-b py-4 rounded-md -mx-2 px-2 cursor-pointer transition-colors group"
-                style={{ borderColor: "var(--border)" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "var(--surface)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                onClick={() => router.push(`/dashboard/tasks/projects/${p.id}`)}
-              >
-                {/* color dot */}
+          <div className="flex flex-col">
+            {/* Section label */}
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="text-[9px] tracking-[0.14em] uppercase" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                All Projects
+              </span>
+              <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+            </div>
+
+            {projects.map(p => {
+              const catColor = CATEGORY_COLORS[p.categoryTag ?? ""] ?? "var(--text-secondary)";
+              return (
                 <div
-                  className="w-3 h-3 rounded-full shrink-0"
-                  style={{ background: p.color ?? "var(--border-mid)" }}
-                />
-
-                {/* name */}
-                <span
-                  className="flex-1 min-w-0 text-[14px] tracking-[0.01em] truncate"
-                  style={{ color: "var(--text-primary)" }}
+                  key={p.id}
+                  className="relative flex items-center gap-4 py-3.5 border-b cursor-pointer group"
+                  style={{ borderColor: "var(--border)" }}
+                  onClick={() => router.push(`/dashboard/tasks/projects/${p.id}`)}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--surface)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 >
-                  {p.name}
-                </span>
+                  {/* Left color accent */}
+                  <div
+                    className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: p.color ?? "var(--border-mid)" }}
+                  />
 
-                {/* meta */}
-                <div className="flex items-center gap-5 shrink-0">
-                  <span className="text-[13px] tracking-[0.02em] hidden sm:block w-20 text-right" style={{ color: "var(--text-mid)" }}>
-                    {p.categoryTag ?? "—"}
+                  {/* Color dot */}
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0 ml-3 transition-transform group-hover:scale-110"
+                    style={{ background: p.color ?? "var(--border-mid)" }}
+                  />
+
+                  {/* Name */}
+                  <span
+                    className="flex-1 min-w-0 text-[14px] tracking-[0.005em] truncate"
+                    style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}
+                  >
+                    {p.name}
                   </span>
-                </div>
 
-                {/* more button */}
-                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                  {/* Category badge */}
+                  {p.categoryTag && (
+                    <span
+                      className="text-[9px] tracking-[0.08em] uppercase px-2 py-0.5 rounded-sm shrink-0 hidden sm:inline"
+                      style={{
+                        background: catColor + "18",
+                        color: catColor,
+                        fontFamily: "var(--font-mono)",
+                        border: `1px solid ${catColor}28`,
+                      }}
+                    >
+                      {p.categoryTag}
+                    </span>
+                  )}
+
+                  {/* More button */}
                   <button
-                    className="w-8 h-8 flex items-center justify-center rounded-[5px] text-[18px] transition-colors"
-                    style={{ color: "var(--text-secondary)" }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface-raised)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+                    className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[16px] opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    style={{ color: "var(--text-secondary)", background: "none", border: "none" }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "var(--surface-raised)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-secondary)"; }}
                     onClick={e => {
                       e.stopPropagation();
                       setCtxMenu({ id: p.id, x: e.clientX, y: e.clientY });
@@ -177,8 +224,8 @@ export default function ProjectsPage() {
                     ⋯
                   </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -186,16 +233,17 @@ export default function ProjectsPage() {
       {/* Context menu */}
       {ctxMenu && (
         <div
-          className="fixed z-50 rounded-[8px] border py-1.5 min-w-[140px]"
+          className="fixed z-50 rounded-lg border py-1.5 min-w-35"
           style={{
             top: ctxMenu.y + 4, left: Math.min(ctxMenu.x, window.innerWidth - 160),
             background: "var(--surface)", borderColor: "var(--border-mid)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
           }}
           onClick={e => e.stopPropagation()}
         >
           <button
             onClick={() => { setCtxMenu(null); openEdit(ctxMenu.id); }}
-            className="block w-full text-left px-3 py-2 text-[13px] tracking-[0.02em] rounded-[5px] transition-colors"
+            className="block w-full text-left px-3 py-2 text-[12px] tracking-[0.03em] transition-colors"
             style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
             onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-raised)")}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -205,7 +253,7 @@ export default function ProjectsPage() {
           <div className="h-px my-1" style={{ background: "var(--border)" }} />
           <button
             onClick={() => deleteProject(ctxMenu.id)}
-            className="block w-full text-left px-3 py-2 text-[13px] tracking-[0.02em] rounded-[5px] transition-colors"
+            className="block w-full text-left px-3 py-2 text-[12px] tracking-[0.03em] transition-colors"
             style={{ color: "rgba(217,107,107,0.8)", fontFamily: "var(--font-mono)" }}
             onMouseEnter={e => (e.currentTarget.style.background = "rgba(217,107,107,0.08)")}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -218,13 +266,17 @@ export default function ProjectsPage() {
       {/* Modal */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-5"
-          style={{ background: "rgba(0,0,0,0.75)" }}
+          className="fixed inset-0 z-100 flex items-center justify-center p-5"
+          style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)" }}
           onClick={() => setModalOpen(false)}
         >
           <div
-            className="w-full max-w-[400px] rounded-[12px] border"
-            style={{ background: "var(--surface)", borderColor: "var(--border-mid)" }}
+            className="w-full max-w-100 rounded-xl border"
+            style={{
+              background: "var(--surface)",
+              borderColor: "var(--border-mid)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+            }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5.5 pt-5 pb-4 border-b" style={{ borderColor: "var(--border)" }}>
@@ -237,22 +289,24 @@ export default function ProjectsPage() {
               <button
                 onClick={() => setModalOpen(false)}
                 className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[18px] transition-colors"
-                style={{ color: "var(--text-secondary)" }}
+                style={{ color: "var(--text-secondary)", background: "none", border: "none" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "var(--text-primary)")}
+                onMouseLeave={e => (e.currentTarget.style.color = "var(--text-secondary)")}
               >
                 ×
               </button>
             </div>
 
-            <div className="px-5.5 py-5 flex flex-col gap-4">
+            <div className="px-5.5 py-5 flex flex-col gap-5">
               <div>
-                <label className="block text-[11px] tracking-[0.08em] uppercase mb-1.5" style={{ color: "var(--text-secondary)" }}>Name</label>
+                <label className="block text-[10px] tracking-widest uppercase mb-2" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>Name</label>
                 <input
                   autoFocus
                   value={fName}
                   onChange={e => setFName(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && saveProject()}
                   placeholder="Project name"
-                  className="w-full rounded-[7px] border px-3 py-2.25 text-[14px] outline-none transition-colors"
+                  className="w-full rounded-[7px] border px-3 py-2.5 text-[14px] outline-none transition-colors"
                   style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
                   onFocus={e => (e.currentTarget.style.borderColor = "var(--border-hi)")}
                   onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
@@ -260,25 +314,31 @@ export default function ProjectsPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] tracking-[0.08em] uppercase mb-1.5" style={{ color: "var(--text-secondary)" }}>Color</label>
-                <div className="flex gap-2 flex-wrap">
+                <label className="block text-[10px] tracking-widest uppercase mb-2" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>Color</label>
+                <div className="flex gap-2.5 flex-wrap">
                   {COLORS.map(c => (
                     <button
                       key={c}
                       onClick={() => setSelectedColor(c)}
-                      className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
-                      style={{ background: c, borderColor: c === selectedColor ? "rgba(255,255,255,0.5)" : "transparent" }}
+                      className="w-6 h-6 rounded-full transition-all hover:scale-110"
+                      style={{
+                        background: c,
+                        outline: c === selectedColor ? `2px solid ${c}` : "none",
+                        outlineOffset: 2,
+                        opacity: c === selectedColor ? 1 : 0.55,
+                        border: "none",
+                      }}
                     />
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] tracking-[0.08em] uppercase mb-1.5" style={{ color: "var(--text-secondary)" }}>Category</label>
+                <label className="block text-[10px] tracking-widest uppercase mb-2" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>Category</label>
                 <select
                   value={fCategory}
                   onChange={e => setFCategory(e.target.value)}
-                  className="w-full rounded-[7px] border px-3 py-2.25 text-[14px] outline-none transition-colors"
+                  className="w-full rounded-[7px] border px-3 py-2.5 text-[13px] outline-none transition-colors"
                   style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
                 >
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -289,17 +349,17 @@ export default function ProjectsPage() {
             <div className="flex justify-end gap-2 px-5.5 pb-5">
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-4 py-2 text-[13px] rounded-[7px] border transition-colors"
-                style={{ color: "var(--text-mid)", borderColor: "var(--border)", fontFamily: "var(--font-mono)" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-hi)"; (e.currentTarget as HTMLElement).style.color = "var(--text-primary)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-mid)"; }}
+                className="px-4 py-2 text-[12px] tracking-[0.03em] rounded-[7px] border transition-colors"
+                style={{ color: "var(--text-mid)", borderColor: "var(--border)", fontFamily: "var(--font-mono)", background: "none" }}
+                onMouseEnter={e => { (e.currentTarget.style.borderColor = "var(--border-hi)"); (e.currentTarget.style.color = "var(--text-primary)"); }}
+                onMouseLeave={e => { (e.currentTarget.style.borderColor = "var(--border)"); (e.currentTarget.style.color = "var(--text-mid)"); }}
               >
                 Cancel
               </button>
               <button
                 onClick={saveProject}
-                className="px-5 py-2 text-[13px] font-medium rounded-[7px] transition-opacity hover:opacity-80"
-                style={{ background: "var(--text-primary)", color: "var(--bg)", fontFamily: "var(--font-mono)" }}
+                className="px-5 py-2 text-[12px] tracking-[0.03em] font-medium rounded-[7px] transition-opacity hover:opacity-80"
+                style={{ background: "var(--text-primary)", color: "var(--bg)", fontFamily: "var(--font-mono)", border: "none" }}
               >
                 {editingId !== null ? "Save Changes" : "Create Project"}
               </button>

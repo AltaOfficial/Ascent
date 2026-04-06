@@ -80,6 +80,7 @@ JWT_SECRET=<same as backend>
 
 ## Key Conventions
 
+- Never use `localStorage` or `sessionStorage` — persist state to the database via the API.
 - Backend DTOs use `class-validator` decorators for request validation.
 - TypeORM entities define both DB schema and TypeScript types — keep them in sync.
 - `synchronize: true` is dev-only; never enable in production.

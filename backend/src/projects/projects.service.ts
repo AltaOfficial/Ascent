@@ -17,7 +17,7 @@ export class ProjectsService {
   ) {}
 
   async findAllByUserId(userId: string): Promise<ProjectEntity[]> {
-    return await this.projectRepository.findBy({ userId });
+    return await this.projectRepository.find({ where: { userId }, order: { createdAt: 'ASC' } });
   }
 
   async findById(id: string, userId: string): Promise<ProjectEntity | null> {

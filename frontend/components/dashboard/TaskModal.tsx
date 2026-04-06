@@ -16,6 +16,7 @@ type Task = {
   categoryTag: string | null;
   dueDate: string | null;
   estimatedMinutes: number | null;
+  actualMinutes?: number | null;
   isHighValue: boolean;
   isRevenueImpact: boolean;
 };
@@ -119,7 +120,7 @@ export function TaskModal({
 
   const selectedTag = projectTags.find(t => t.name === categoryTag);
 
-  const metaFields: { label: string; element: React.ReactNode }[] = [
+  const metaFields: { label: string; labelSuffix?: React.ReactNode; element: React.ReactNode }[] = [
     {
       label: "Status",
       element: (
@@ -196,6 +197,31 @@ export function TaskModal({
         />
       ),
     },
+    {
+      label: "Actual time",
+      element: (
+        <div
+          className="w-full rounded-md border px-2.5 py-1.5 text-[11px] flex items-center gap-1.5"
+          style={task?.actualMinutes ? {
+            background: "rgba(107,187,138,0.07)",
+            borderColor: "rgba(107,187,138,0.35)",
+            color: "rgba(107,187,138,0.95)",
+            fontFamily: "var(--font-mono)",
+          } : {
+            background: "var(--surface-2)",
+            borderColor: "var(--border)",
+            color: "var(--text-secondary)",
+            fontFamily: "var(--font-mono)",
+            opacity: 0.45,
+          }}
+        >
+          {task?.actualMinutes && (
+            <span style={{ fontSize: 10, opacity: 0.7 }}>●</span>
+          )}
+          {task?.actualMinutes ? formatEstimatedMinutes(task.actualMinutes) : "—"}
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -230,14 +256,17 @@ export function TaskModal({
 
         {/* Meta fields */}
         <div className="grid grid-cols-2 gap-2.5 p-5 border-b" style={{ borderColor: "var(--border)" }}>
-          {metaFields.map(({ label, element }) => (
+          {metaFields.map(({ label, labelSuffix, element }) => (
             <div key={label}>
-              <label
-                className="block text-[9px] tracking-[0.08em] uppercase mb-1.5"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {label}
-              </label>
+              <div className="flex items-center mb-1.5">
+                <label
+                  className="text-[9px] tracking-[0.08em] uppercase"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  {label}
+                </label>
+                {labelSuffix}
+              </div>
               {element}
             </div>
           ))}

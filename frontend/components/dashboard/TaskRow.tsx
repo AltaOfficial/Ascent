@@ -16,6 +16,7 @@ export type Task = {
   categoryTag: string | null;
   dueDate: string | null;
   estimatedMinutes: number | null;
+  actualMinutes?: number | null;
   isHighValue: boolean;
   isRevenueImpact: boolean;
 };

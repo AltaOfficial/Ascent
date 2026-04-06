@@ -214,6 +214,16 @@ export default function TaskInbox() {
               >
                 Priority
               </TableHead>
+              <TableHead
+                className="hidden md:table-cell"
+                style={{
+                  color: "var(--text-secondary)",
+                  fontSize: 10,
+                  letterSpacing: "0.07em",
+                }}
+              >
+                Due
+              </TableHead>
               <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
@@ -221,7 +231,7 @@ export default function TaskInbox() {
             {/* Inline add row */}
             {showAdd && (
               <TableRow style={{ borderColor: "var(--border-mid)", background: "var(--surface-raised)" }}>
-                <TableCell colSpan={5} className="py-2 px-4">
+                <TableCell colSpan={6} className="py-2 px-4">
                   <input
                     ref={addInputRef}
                     value={addingTitle}
@@ -246,7 +256,7 @@ export default function TaskInbox() {
               if (visibleTasks.length === 0 && events.length === 0 && !showAdd) return (
                 <TableRow style={{ borderColor: "var(--border)" }}>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-center py-10 text-[12px]"
                     style={{ color: "var(--text-secondary)" }}
                   >
@@ -300,6 +310,19 @@ export default function TaskInbox() {
                       >
                         {task.priority ? task.priority.charAt(0).toUpperCase() + task.priority.slice(1) : "—"}
                       </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {(() => {
+                          const d = formatDueDate(task.dueDate);
+                          const color = d
+                            ? d.urgency === "overdue" ? "rgba(217,107,107,0.8)"
+                            : d.urgency === "today" ? "rgba(107,187,138,0.9)"
+                            : d.urgency === "tomorrow" ? "rgba(230,180,70,0.9)"
+                            : d.urgency === "week" ? "rgba(147,107,200,0.85)"
+                            : "rgba(150,150,160,0.7)"
+                            : "var(--text-secondary)";
+                          return <span className="text-[10px] tracking-[0.03em]" style={{ color }}>{d?.label ?? "—"}</span>;
+                        })()}
+                      </TableCell>
                       <TableCell>
                         {activeEntry?.taskId === task.id ? (
                           <button
@@ -347,6 +370,7 @@ export default function TaskInbox() {
                             {event.project ?? "—"}
                           </span>
                         </TableCell>
+                        <TableCell className="hidden md:table-cell" />
                         <TableCell className="hidden md:table-cell">
                           {(() => {
                             const d = formatDueDate(event.date);

@@ -10,6 +10,8 @@
   --text-secondary: #6b6b7a;
   --text-mid:       #9a9aaa;
   --accent:         #d8d8e8;
+  --surface-raised: #1c1c21;
+  --border-hi:      rgba(255,255,255,0.32);
 }
 
 @theme inline {
