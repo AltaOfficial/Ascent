@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { differenceInCalendarDays, format, isToday, isTomorrow, parse, startOfDay } from "date-fns";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -23,26 +24,13 @@ type Section = { id: string; name: string; order: number; projectId: string };
 
 function fmtDue(dateStr: string | null) {
   if (!dateStr) return null;
-  const date = new Date(dateStr);
-  date.setHours(0, 0, 0, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
+  const date = parse(dateStr.slice(0, 10), "yyyy-MM-dd", new Date());
+  const diff = differenceInCalendarDays(date, startOfDay(new Date()));
   let label: string;
-  if (diff < 0)
-    label = date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-  else if (diff === 0) label = "Today";
-  else if (diff === 1) label = "Tomorrow";
-  else if (diff <= 6)
-    label = date.toLocaleDateString("en-US", { weekday: "long" });
-  else
-    label = date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
+  if (isToday(date)) label = "Today";
+  else if (isTomorrow(date)) label = "Tomorrow";
+  else if (diff > 1 && diff <= 6) label = format(date, "EEEE");
+  else label = format(date, "MMM d");
   if (diff < 0) return { label, cls: "overdue" };
   if (diff === 0) return { label, cls: "today" };
   if (diff === 1) return { label, cls: "tomorrow" };
