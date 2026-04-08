@@ -16,9 +16,15 @@ import { TYPE_COLOR } from "@/components/dashboard/calendarTypes";
 import type { CalEvent } from "@/components/dashboard/calendarTypes";
 import { formatDueDate } from "@/components/dashboard/TaskRow";
 
+function parseDateLocal(dateStr: string): Date {
+  if (dateStr.includes("T")) return parseISO(dateStr);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function isUpcomingOrOverdue(dateStr: string): boolean {
   const nextWeekEnd = endOfWeek(addWeeks(new Date(), 1), { weekStartsOn: 1 });
-  return parseISO(dateStr) <= nextWeekEnd;
+  return parseDateLocal(dateStr) <= nextWeekEnd;
 }
 
 type Task = {
@@ -64,7 +70,7 @@ export default function TaskInbox() {
             (e) =>
               (e.type === "event" || e.type === "exam") &&
               !e.done &&
-              isWithinInterval(parseISO(e.date), { start: startOfToday(), end: nextWeekEnd }),
+              isWithinInterval(parseDateLocal(e.date), { start: startOfToday(), end: nextWeekEnd }),
           ),
         );
       })

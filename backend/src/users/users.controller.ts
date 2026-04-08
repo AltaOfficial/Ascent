@@ -24,7 +24,10 @@ export class UsersController {
   }
 
   @Post('hours')
-  async getHours(@Request() req, @Body() body: { range: '7d' | '30d' | '3m' }) {
+  async getHours(
+    @Request() req,
+    @Body() body: { range: '7d' | '30d' | '3m'; tzOffset?: number },
+  ) {
     const rangeMap = { '7d': 7, '30d': 30, '3m': 90 };
     const days = rangeMap[body.range] ?? 7;
     const since = new Date();
@@ -35,9 +38,14 @@ export class UsersController {
       since,
     );
 
+    // tzOffset is getTimezoneOffset() from the browser: minutes *behind* UTC
+    // (e.g. UTC-5 → 300, UTC+5 → -300). Subtract to shift UTC → local time.
+    const offsetMs = (body.tzOffset ?? 0) * 60 * 1000;
+
     const hoursByDate: Record<string, number> = {};
     for (const entry of timeEntries) {
-      const dateKey = entry.startedAt.toISOString().split('T')[0];
+      const localTime = new Date(entry.startedAt.getTime() - offsetMs);
+      const dateKey = localTime.toISOString().split('T')[0];
       const durationInHours =
         (entry.endedAt.getTime() - entry.startedAt.getTime()) / 1000 / 3600;
       hoursByDate[dateKey] = (hoursByDate[dateKey] ?? 0) + durationInHours;

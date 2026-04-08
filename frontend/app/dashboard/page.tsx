@@ -38,7 +38,7 @@ export default function DashboardPage() {
     try {
       const data = await apiFetch<HoursEntry[]>("/users/hours", {
         method: "POST",
-        body: JSON.stringify({ range }),
+        body: JSON.stringify({ range, tzOffset: new Date().getTimezoneOffset() }),
       });
       setHoursData(data);
     } catch {}

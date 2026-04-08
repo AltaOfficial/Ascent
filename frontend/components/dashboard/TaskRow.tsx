@@ -25,7 +25,14 @@ export function formatDueDate(
   dateStr: string | null,
 ): { label: string; urgency: "overdue" | "today" | "tomorrow" | "week" | "future" } | null {
   if (!dateStr) return null;
-  const date = parseISO(dateStr);
+  // Date-only strings (e.g. "2026-04-09") must be parsed as local midnight,
+  // not UTC midnight — parseISO treats them as UTC which shifts the date
+  // backward by the local UTC offset (e.g. shows "tomorrow" as "today").
+  const rawDate = dateStr.includes("T") ? parseISO(dateStr) : (() => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  })();
+  const date = rawDate;
   const diff = differenceInCalendarDays(date, new Date());
   let label: string;
   if (diff < 0) label = format(date, "MMM d");
