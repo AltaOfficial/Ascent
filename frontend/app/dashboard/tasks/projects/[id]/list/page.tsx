@@ -18,8 +18,8 @@ type Section = { id: string; name: string; order: number; projectId: string };
 
 function fmtDue(dateStr: string | null) {
   if (!dateStr) return null;
-  const d = new Date(dateStr);
-  d.setHours(0, 0, 0, 0);
+  const [y, mo, dy] = dateStr.slice(0, 10).split("-").map(Number);
+  const d = new Date(y, mo - 1, dy);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);

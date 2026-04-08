@@ -1,6 +1,6 @@
 "use client";
 
-import { format, parseISO, differenceInCalendarDays } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { TagBadge } from "@/components/dashboard/TagBadge";
 
 type Status = "todo" | "in_progress" | "blocked" | "done";
@@ -23,16 +23,17 @@ export type Task = {
 
 export function formatDueDate(
   dateStr: string | null,
-): { label: string; urgency: "overdue" | "today" | "tomorrow" | "week" | "future" } | null {
+): {
+  label: string;
+  urgency: "overdue" | "today" | "tomorrow" | "week" | "future";
+} | null {
   if (!dateStr) return null;
-  // Date-only strings (e.g. "2026-04-09") must be parsed as local midnight,
-  // not UTC midnight — parseISO treats them as UTC which shifts the date
-  // backward by the local UTC offset (e.g. shows "tomorrow" as "today").
-  const rawDate = dateStr.includes("T") ? parseISO(dateStr) : (() => {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    return new Date(y, m - 1, d);
-  })();
-  const date = rawDate;
+  // dueDate comes back as a UTC timestamp ("2026-04-09T00:00:00.000Z") because
+  // the column type is `timestamp`. parseISO would treat it as UTC midnight,
+  // shifting it backward in negative-offset timezones (e.g. UTC-5 → Apr 8).
+  // We only care about the calendar date, so strip the time and parse as local.
+  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
+  const date = new Date(y, m - 1, d);
   const diff = differenceInCalendarDays(date, new Date());
   let label: string;
   if (diff < 0) label = format(date, "MMM d");
@@ -75,7 +76,7 @@ export function TaskRow({
 
   return (
     <div
-      className="flex items-center border-b min-h-[46px] group cursor-pointer transition-colors"
+      className="flex items-center border-b min-h-11.5 group cursor-pointer transition-colors"
       style={{ borderColor: "var(--border)", opacity: isDone ? 0.45 : 1 }}
       onMouseEnter={(e) =>
         (e.currentTarget.style.background = "var(--surface-2)")

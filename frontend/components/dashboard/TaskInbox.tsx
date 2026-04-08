@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { startOfToday, endOfWeek, addWeeks, isWithinInterval, parseISO } from "date-fns";
+import { startOfToday, endOfWeek, addWeeks, isWithinInterval } from "date-fns";
 import {
   Table,
   TableBody,
@@ -17,8 +17,7 @@ import type { CalEvent } from "@/components/dashboard/calendarTypes";
 import { formatDueDate } from "@/components/dashboard/TaskRow";
 
 function parseDateLocal(dateStr: string): Date {
-  if (dateStr.includes("T")) return parseISO(dateStr);
-  const [y, m, d] = dateStr.split("-").map(Number);
+  const [y, m, d] = dateStr.slice(0, 10).split("-").map(Number);
   return new Date(y, m - 1, d);
 }
 
