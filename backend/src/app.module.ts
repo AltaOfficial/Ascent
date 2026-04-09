@@ -23,6 +23,7 @@ import { ComplianceRuleEntity } from './compliance/entities/compliance-rule.enti
 import { ComplianceEntryEntity } from './compliance/entities/compliance-entry.entity';
 import { CalendarEventsModule } from './calendar-events/calendar-events.module';
 import { CalendarEventEntity } from './calendar-events/entities/calendar-event.entity';
+import { RankingModule } from './ranking/ranking.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { CalendarEventEntity } from './calendar-events/entities/calendar-event.e
       ssl: process.env.DB_SSL as any,
       synchronize: true, // dont use in production
     }),
+    RankingModule,
     MailerModule,
     InvitesModule,
     UsersModule,

@@ -14,7 +14,7 @@ import { InvitesModule } from '../invites/invites.module';
     InvitesModule,
     PassportModule,
     JwtModule.registerAsync({
-      useFactory: () => ({ secret: process.env.JWT_SECRET }),
+      useFactory: () => ({ secret: process.env.JWT_SECRET, signOptions: { expiresIn: '7d'} }),
     }),
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy],
