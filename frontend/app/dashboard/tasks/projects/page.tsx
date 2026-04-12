@@ -10,24 +10,12 @@ const COLORS = [
   "#c47fd4", "#d9d9d9", "#888890",
 ];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  School:   "#6b9ed9",
-  SaaS:     "#7b6ef6",
-  Skills:   "#6bbb8a",
-  Revenue:  "#d9c46b",
-  Personal: "#c47fd4",
-  Other:    "#888890",
-};
-
 type Project = {
   id: string;
   name: string;
   color: string | null;
-  categoryTag: string | null;
   viewType: string;
 };
-
-const CATEGORIES = ["School", "SaaS", "Skills", "Revenue", "Personal", "Other"];
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -39,7 +27,6 @@ export default function ProjectsPage() {
   const [ctxMenu, setCtxMenu] = useState<{ id: string; x: number; y: number } | null>(null);
 
   const [fName, setFName] = useState("");
-  const [fCategory, setFCategory] = useState("Other");
 
   useEffect(() => {
     apiFetch<Project[]>("/projects")
@@ -51,7 +38,6 @@ export default function ProjectsPage() {
   function openCreate() {
     setEditingId(null);
     setSelectedColor(COLORS[4]);
-    setFName(""); setFCategory("Other");
     setModalOpen(true);
   }
 
@@ -60,7 +46,6 @@ export default function ProjectsPage() {
     if (!p) return;
     setEditingId(id);
     setSelectedColor(p.color ?? COLORS[4]);
-    setFName(p.name); setFCategory(p.categoryTag ?? "Other");
     setModalOpen(true);
   }
 
@@ -70,13 +55,13 @@ export default function ProjectsPage() {
       if (editingId !== null) {
         const updated = await apiFetch<Project>(`/projects/${editingId}/update`, {
           method: "POST",
-          body: JSON.stringify({ name: fName.trim(), color: selectedColor, categoryTag: fCategory }),
+          body: JSON.stringify({ name: fName.trim(), color: selectedColor }),
         });
         setProjects(ps => ps.map(p => p.id === editingId ? updated : p));
       } else {
         const created = await apiFetch<Project>("/projects", {
           method: "POST",
-          body: JSON.stringify({ name: fName.trim(), color: selectedColor, categoryTag: fCategory }),
+          body: JSON.stringify({ name: fName.trim(), color: selectedColor }),
         });
         setProjects(ps => [...ps, created]);
       }
@@ -164,7 +149,6 @@ export default function ProjectsPage() {
             </div>
 
             {projects.map(p => {
-              const catColor = CATEGORY_COLORS[p.categoryTag ?? ""] ?? "var(--text-secondary)";
               return (
                 <div
                   key={p.id}
@@ -193,21 +177,6 @@ export default function ProjectsPage() {
                   >
                     {p.name}
                   </span>
-
-                  {/* Category badge */}
-                  {p.categoryTag && (
-                    <span
-                      className="text-[9px] tracking-[0.08em] uppercase px-2 py-0.5 rounded-sm shrink-0 hidden sm:inline"
-                      style={{
-                        background: catColor + "18",
-                        color: catColor,
-                        fontFamily: "var(--font-mono)",
-                        border: `1px solid ${catColor}28`,
-                      }}
-                    >
-                      {p.categoryTag}
-                    </span>
-                  )}
 
                   {/* More button */}
                   <button
@@ -331,18 +300,6 @@ export default function ProjectsPage() {
                     />
                   ))}
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] tracking-widest uppercase mb-2" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>Category</label>
-                <select
-                  value={fCategory}
-                  onChange={e => setFCategory(e.target.value)}
-                  className="w-full rounded-[7px] border px-3 py-2.5 text-[13px] outline-none transition-colors"
-                  style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-                >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
               </div>
             </div>
 

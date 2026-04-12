@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity, ProjectViewType } from './entities/project.entity';
 import { ProjectSectionEntity } from './entities/project-section.entity';
-import { ProjectTagEntity } from './entities/project-tag.entity';
+import { TaskTagEntity } from './entities/task-tag.entity';
 
 @Injectable()
 export class ProjectsService {
@@ -12,8 +12,8 @@ export class ProjectsService {
     private readonly projectRepository: Repository<ProjectEntity>,
     @InjectRepository(ProjectSectionEntity)
     private readonly sectionRepository: Repository<ProjectSectionEntity>,
-    @InjectRepository(ProjectTagEntity)
-    private readonly tagRepository: Repository<ProjectTagEntity>,
+    @InjectRepository(TaskTagEntity)
+    private readonly tagRepository: Repository<TaskTagEntity>,
   ) {}
 
   async findAllByUserId(userId: string): Promise<ProjectEntity[]> {
@@ -28,14 +28,12 @@ export class ProjectsService {
     userId: string,
     name: string,
     viewType?: ProjectViewType,
-    categoryTag?: string,
     color?: string,
   ): Promise<ProjectEntity> {
     const project = this.projectRepository.create({
       userId,
       name,
       viewType: viewType ?? ProjectViewType.LIST,
-      categoryTag: categoryTag ?? undefined,
       color: color ?? undefined,
     });
     return await this.projectRepository.save(project);
@@ -44,7 +42,7 @@ export class ProjectsService {
   async update(
     id: string,
     userId: string,
-    updates: Partial<Pick<ProjectEntity, 'name' | 'viewType' | 'categoryTag' | 'color'>>,
+    updates: Partial<Pick<ProjectEntity, 'name' | 'viewType' | 'color'>>,
   ): Promise<ProjectEntity | null> {
     await this.projectRepository.update({ id, userId }, updates);
     return await this.projectRepository.findOneBy({ id });
@@ -85,11 +83,11 @@ export class ProjectsService {
 
   // Tags
 
-  async getTags(projectId: string, userId: string): Promise<ProjectTagEntity[]> {
+  async getTags(projectId: string, userId: string): Promise<TaskTagEntity[]> {
     return await this.tagRepository.findBy({ projectId, userId });
   }
 
-  async createTag(projectId: string, userId: string, name: string, color: string): Promise<ProjectTagEntity> {
+  async createTag(projectId: string, userId: string, name: string, color: string): Promise<TaskTagEntity> {
     const tag = this.tagRepository.create({ projectId, userId, name, color });
     return await this.tagRepository.save(tag);
   }
@@ -97,8 +95,8 @@ export class ProjectsService {
   async updateTag(
     id: string,
     userId: string,
-    updates: Partial<Pick<ProjectTagEntity, 'name' | 'color'>>,
-  ): Promise<ProjectTagEntity | null> {
+    updates: Partial<Pick<TaskTagEntity, 'name' | 'color'>>,
+  ): Promise<TaskTagEntity | null> {
     await this.tagRepository.update({ id, userId }, updates);
     return await this.tagRepository.findOneBy({ id });
   }

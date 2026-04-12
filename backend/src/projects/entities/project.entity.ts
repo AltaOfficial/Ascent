@@ -3,7 +3,6 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 
 export enum ProjectViewType {
@@ -25,9 +24,6 @@ export class ProjectEntity {
     default: ProjectViewType.LIST,
   })
   viewType: ProjectViewType;
-
-  @Column({ nullable: true })
-  categoryTag: string;
 
   @Column({ nullable: true })
   color: string;

@@ -5,8 +5,8 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'project_tags' })
-export class ProjectTagEntity {
+@Entity({ name: 'task_tags' })
+export class TaskTagEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

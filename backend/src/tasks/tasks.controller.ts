@@ -27,7 +27,6 @@ export class TasksController {
   }
 
   @Post('subtask-counts')
-  @HttpCode(200)
   async getSubtaskCounts(@Body() body: { taskIds: string[] }) {
     return this.tasksService.getSubtaskCounts(body.taskIds ?? []);
   }

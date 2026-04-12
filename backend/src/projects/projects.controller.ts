@@ -33,13 +33,12 @@ export class ProjectsController {
   async createProject(
     @Request() req,
     @Body()
-    body: { name: string; viewType?: ProjectViewType; categoryTag?: string; color?: string },
+    body: { name: string; viewType?: ProjectViewType; color?: string },
   ) {
     return this.projectsService.create(
       req.user.userId,
       body.name,
       body.viewType,
-      body.categoryTag,
       body.color,
     );
   }
@@ -49,7 +48,7 @@ export class ProjectsController {
     @Request() req,
     @Param('id') id: string,
     @Body()
-    body: { name?: string; viewType?: ProjectViewType; categoryTag?: string; color?: string },
+    body: { name?: string; viewType?: ProjectViewType; color?: string },
   ) {
     return this.projectsService.update(id, req.user.userId, body);
   }

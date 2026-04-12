@@ -12,9 +12,9 @@ import { AuthModule } from './auth/auth.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ProjectEntity } from './projects/entities/project.entity';
 import { ProjectSectionEntity } from './projects/entities/project-section.entity';
-import { ProjectTagEntity } from './projects/entities/project-tag.entity';
 import { TasksModule } from './tasks/tasks.module';
 import { TaskEntity } from './tasks/entities/task.entity';
+import { TaskTagEntity } from './projects/entities/task-tag.entity';
 import { SubtaskEntity } from './tasks/entities/subtask.entity';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
 import { TimeEntryEntity } from './time-entries/entities/time-entry.entity';
@@ -40,8 +40,8 @@ import { RankingModule } from './ranking/ranking.module';
         InviteEntity,
         ProjectEntity,
         ProjectSectionEntity,
-        ProjectTagEntity,
         TaskEntity,
+        TaskTagEntity,
         SubtaskEntity,
         TimeEntryEntity,
         ComplianceRuleEntity,
