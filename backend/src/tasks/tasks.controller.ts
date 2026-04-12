@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request, HttpCode, Req } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TaskEntity } from './entities/task.entity';
@@ -11,6 +11,11 @@ export class TasksController {
   @Get()
   async getAllTasks(@Request() req) {
     return this.tasksService.findAllByUserId(req.user.userId);
+  }
+
+  @Post("ids")
+  async getTasksWithId(@Request() req, @Body() body: { taskIds: [string]}) {
+    return await this.tasksService.findAllByTaskIdsAndUserId(req.user.userId, body.taskIds);;
   }
 
   @Post('list')

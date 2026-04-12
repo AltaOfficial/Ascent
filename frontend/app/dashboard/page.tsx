@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { format, subDays, startOfDay, endOfDay, startOfWeek, addDays } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, startOfWeek, addDays, differenceInMilliseconds } from "date-fns";
 import HoursChart from "@/components/dashboard/HoursChart";
 import TaskInbox from "@/components/dashboard/TaskInbox";
 import { DriftDonut, MiniLine } from "@/components/dashboard/ClientCharts";
@@ -10,8 +10,12 @@ import { apiFetch } from "@/lib/api";
 import { RANKS } from "@/lib/constants";
 
 type HoursEntry = { date: string; hours: number };
+type TimeEntry = { taskId: string; userId: string; startedAt: string; endedAt: string };
+type Project = { id: string; name: string; color: string };
 type ComplianceRule = { id: string; name: string };
 type ComplianceEntry = { ruleId: string; date: string; checked: boolean };
+type DriftEntry = { label: string; percentage: number; color: string };
+type Task = {id: string, projectId: string }
 
 type DateRange = "7d" | "30d" | "3m";
 
@@ -31,17 +35,58 @@ const UNRANKED = RANKS[0];
 export default function DashboardPage() {
   const todayLabel = format(new Date(), "EEEE, MMMM d, yyyy");
   const [hoursData, setHoursData] = useState<HoursEntry[]>([]);
+
   const [compliancePct, setCompliancePct] = useState<number | null>(null);
   const [complianceDelta, setComplianceDelta] = useState<number | null>(null);
 
+  const [driftEntries, setDriftEntries] = useState<DriftEntry[]>([]);
+
   const fetchHours = useCallback(async (range: DateRange) => {
-    try {
-      const data = await apiFetch<HoursEntry[]>("/users/hours", {
-        method: "POST",
-        body: JSON.stringify({ range, tzOffset: new Date().getTimezoneOffset() }),
-      });
-      setHoursData(data);
-    } catch {}
+    const data = await apiFetch<HoursEntry[]>("/users/hours", {
+      method: "POST",
+      body: JSON.stringify({ range, tzOffset: new Date().getTimezoneOffset() }),
+    });
+    setHoursData(data);
+  }, []);
+
+  const fetchDriftData = useCallback( async (range: DateRange) => {
+    const dateRange = buildDateRange(range);
+    console.log(dateRange)
+    const timeEntries = await apiFetch<TimeEntry[]>("/time-entries/dates", {
+      method: "POST",
+      body: JSON.stringify({ start: formatDateParam(dateRange.start), end: formatDateParam(dateRange.end) }),
+    });
+    const taskIds = timeEntries.map((entry) => entry.taskId);
+    const tasks = await apiFetch<Task[]>("/tasks/ids", {
+      method: "POST",
+      body: JSON.stringify({taskIds: taskIds})
+    });
+    const projects = (await apiFetch<Project[]>("/projects"))
+
+    const driftEntries: DriftEntry[] = []; // label(ProjectName) \ color \ percentage
+    const projectWithTimeAndColor: {name: string, color: string, miliseconds: number}[] = [];
+
+    projects.forEach((project) => {
+      let projectTimeMilliseconds = 0;
+      timeEntries.forEach((timeEntry) => {
+        const task = tasks.find((task) => task.id == timeEntry.taskId);
+        if(!task) return;
+        if(task.projectId == project.id){
+          projectTimeMilliseconds += differenceInMilliseconds(timeEntry.endedAt, timeEntry.startedAt)
+        }
+      })
+      projectWithTimeAndColor.push({name: project.name, color: project.color, miliseconds: projectTimeMilliseconds})
+    });
+
+    const totalWorkMilliseconds = projectWithTimeAndColor.reduce((acc, current) => acc + current.miliseconds, 0);
+
+    projectWithTimeAndColor.forEach((project) => {
+      if(project.miliseconds == 0) return;
+      driftEntries.push({label: project.name, color: project.color, percentage: (project.miliseconds / totalWorkMilliseconds) * 100})
+    })
+
+    setDriftEntries(driftEntries);
+
   }, []);
 
   const fetchCompliance = useCallback(async (range: DateRange) => {
@@ -119,14 +164,16 @@ export default function DashboardPage() {
     (range: DateRange) => {
       fetchHours(range);
       fetchCompliance(range);
+      fetchDriftData(range);
     },
-    [fetchHours, fetchCompliance]
+    [fetchHours, fetchCompliance, fetchDriftData]
   );
 
   useEffect(() => {
     fetchHours("30d");
     fetchCompliance("30d");
-  }, [fetchHours, fetchCompliance]);
+    fetchDriftData("30d");
+  }, [fetchHours, fetchCompliance, fetchDriftData]);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-15" style={{ scrollbarWidth: "thin", scrollbarColor: "var(--border) transparent" }}>
@@ -205,7 +252,7 @@ export default function DashboardPage() {
         {/* Drift Allocation */}
         <Card style={{ justifyContent: "flex-start", minHeight: undefined }}>
           <CardLabel>Drift Allocation</CardLabel>
-          <DriftDonut />
+          <DriftDonut data={driftEntries} />
         </Card>
 
         {/* Rolling Average */}

@@ -433,7 +433,7 @@ export default function KanbanPage() {
               {projectTags.map((tag) => (
                 <div
                   key={tag.id}
-                  className="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-[4px] group/tag"
+                  className="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-sm group/tag"
                   style={{ background: tag.color + "22", color: tag.color }}
                 >
                   <span className="tracking-[0.04em] uppercase font-medium">
@@ -441,7 +441,7 @@ export default function KanbanPage() {
                   </span>
                   <button
                     onClick={() => handleDeleteTag(tag.id)}
-                    className="opacity-0 group-hover/tag:opacity-70 hover:!opacity-100 transition-opacity text-[11px] leading-none"
+                    className="opacity-0 group-hover/tag:opacity-70 hover:opacity-100! transition-opacity text-[11px] leading-none"
                     style={{
                       color: tag.color,
                       background: "none",
@@ -705,7 +705,7 @@ export default function KanbanPage() {
                       onClick={() =>
                         !isDragging && setModal({ open: true, task })
                       }
-                      className="rounded-[8px] border px-3 py-3 cursor-pointer transition-all group/card"
+                      className="rounded-lg border px-3 py-3 cursor-pointer transition-all group/card"
                       style={{
                         background: "var(--surface)",
                         borderColor: "var(--border)",
@@ -773,7 +773,7 @@ export default function KanbanPage() {
                             </div>
                           )}
                           <div
-                            className="text-[12px] tracking-[0.01em] leading-snug break-words"
+                            className="text-[12px] tracking-[0.01em] leading-snug wrap-break-word"
                             style={{
                               color: "var(--text-primary)",
                               textDecoration:
@@ -871,7 +871,7 @@ export default function KanbanPage() {
                 {/* Inline add */}
                 {addingInSection === section.id && (
                   <div
-                    className="rounded-[8px] border px-3 py-2.5"
+                    className="rounded-lg border px-3 py-2.5"
                     style={{
                       background: "var(--surface)",
                       borderColor: "var(--border-mid)",

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { TimeEntriesService } from './time-entries.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TasksService } from '../tasks/tasks.service';
@@ -37,6 +37,19 @@ export class TimeEntriesController {
     return this.timeEntriesService.getTotalsByTaskIds(
       body.taskIds ?? [],
       req.user.userId,
+    );
+  }
+
+  // GET /time-entries/dates?start=YYYY-MM-DD&end=YYYY-MM-DD
+  @Post('dates')
+  async getEntriesByDateRange(
+    @Request() req,
+    @Body() body: { start: string; end: string },
+  ) {
+    return await this.timeEntriesService.getEntriesByDateRange(
+      req.user.userId,
+      body.start,
+      body.end,
     );
   }
 }

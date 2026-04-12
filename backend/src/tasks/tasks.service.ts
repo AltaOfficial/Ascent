@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { TaskEntity, TaskStatus } from './entities/task.entity';
 import { SubtaskEntity } from './entities/subtask.entity';
 
@@ -15,6 +15,15 @@ export class TasksService {
 
   async findAllByUserId(userId: string): Promise<TaskEntity[]> {
     return await this.taskRepository.findBy({ userId });
+  }
+
+  async findAllByTaskIdsAndUserId(userId: string, taskIds: [string]): Promise<TaskEntity[]> {
+    return await this.taskRepository.find({ 
+      where: {
+        id: In(taskIds),
+        userId: userId
+      }
+     });
   }
 
   async findByFilter(userId: string, projectId: string | null | undefined, status?: string): Promise<TaskEntity[]> {

@@ -22,6 +22,7 @@ export class UsersController {
   async getMe(@Request() req) {
     return await this.usersService.findOneById(req.user.userId);
   }
+  
 
   @Post('hours')
   async getHours(

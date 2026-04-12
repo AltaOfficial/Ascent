@@ -49,6 +49,20 @@ export class TimeEntriesService {
       .getMany();
   }
 
+  async getEntriesByDateRange(
+    userId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<TimeEntryEntity[]> {
+    return await this.timeEntryRepository
+      .createQueryBuilder('timeEntry')
+      .where('timeEntry.userId = :userId', { userId })
+      .andWhere('timeEntry.endedAt IS NOT NULL')
+      .andWhere('timeEntry.startedAt >= :startDate', { startDate })
+      .andWhere('timeEntry.startedAt <= :endDate', { endDate })
+      .getMany();
+  }
+
   async getTotalsByTaskIds(
     taskIds: string[],
     userId: string,

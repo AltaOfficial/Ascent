@@ -2,7 +2,7 @@
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-type DriftEntry = { label: string; pct: number; color: string };
+type DriftEntry = { label: string; percentage: number; color: string };
 
 export default function DriftDonut({ data = [] }: { data?: DriftEntry[] }) {
   if (data.length === 0) {
@@ -23,7 +23,7 @@ export default function DriftDonut({ data = [] }: { data?: DriftEntry[] }) {
           <PieChart>
             <Pie
               data={data}
-              dataKey="pct"
+              dataKey="percentage"
               innerRadius="68%"
               outerRadius="100%"
               strokeWidth={0}
