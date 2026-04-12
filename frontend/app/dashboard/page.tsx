@@ -51,10 +51,9 @@ export default function DashboardPage() {
 
   const fetchDriftData = useCallback( async (range: DateRange) => {
     const dateRange = buildDateRange(range);
-    console.log(dateRange)
     const timeEntries = await apiFetch<TimeEntry[]>("/time-entries/dates", {
       method: "POST",
-      body: JSON.stringify({ start: formatDateParam(dateRange.start), end: formatDateParam(dateRange.end) }),
+      body: JSON.stringify({ start: dateRange.start.toISOString(), end: dateRange.end.toISOString() }),
     });
     const taskIds = timeEntries.map((entry) => entry.taskId);
     const tasks = await apiFetch<Task[]>("/tasks/ids", {

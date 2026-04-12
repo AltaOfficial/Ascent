@@ -15,7 +15,7 @@ export class TasksController {
 
   @Post("ids")
   async getTasksWithId(@Request() req, @Body() body: { taskIds: [string]}) {
-    return await this.tasksService.findAllByTaskIdsAndUserId(req.user.userId, body.taskIds);;
+    return await this.tasksService.findAllByTaskIdsAndUserId(req.user.userId, body.taskIds);
   }
 
   @Post('list')

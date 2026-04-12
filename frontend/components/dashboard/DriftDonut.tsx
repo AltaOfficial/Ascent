@@ -51,7 +51,7 @@ export default function DriftDonut({ data = [] }: { data?: DriftEntry[] }) {
         </ResponsiveContainer>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col flex-wrap gap-1.5" style={{ maxHeight: 4 * 16 }}>
         {data.map((entry) => (
           <div
             key={entry.label}
