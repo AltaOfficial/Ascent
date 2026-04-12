@@ -151,13 +151,20 @@ export default function ListPage() {
         setProjectTags(tags);
         const ids = taskList.map((t) => t.id);
         let totals: Record<string, number> = {};
+        let subtaskCounts: Record<string, { total: number; completed: number }> = {};
         if (ids.length) {
-          totals = await apiFetch<Record<string, number>>("/time-entries/totals", {
-            method: "POST",
-            body: JSON.stringify({ taskIds: ids }),
-          }).catch(() => ({}));
+          [totals, subtaskCounts] = await Promise.all([
+            apiFetch<Record<string, number>>("/time-entries/totals", {
+              method: "POST",
+              body: JSON.stringify({ taskIds: ids }),
+            }).catch(() => ({})),
+            apiFetch<Record<string, { total: number; completed: number }>>("/tasks/subtask-counts", {
+              method: "POST",
+              body: JSON.stringify({ taskIds: ids }),
+            }).catch(() => ({})),
+          ]);
         }
-        setTasks(taskList.map((t) => ({ ...t, actualMinutes: totals[t.id] ?? null })));
+        setTasks(taskList.map((t) => ({ ...t, actualMinutes: totals[t.id] ?? null, subtaskCount: subtaskCounts[t.id]?.total ?? 0, subtaskCompletedCount: subtaskCounts[t.id]?.completed ?? 0 })));
       })
       .catch(() => {});
   }, [projectId]);
@@ -188,7 +195,7 @@ export default function ListPage() {
         method: "POST",
         body: JSON.stringify(updates),
       });
-      setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      setTasks((prev) => prev.map((t) => t.id === id ? { ...updated, subtaskCount: t.subtaskCount, subtaskCompletedCount: t.subtaskCompletedCount } : t));
     } catch {}
   }
 
@@ -243,7 +250,7 @@ export default function ListPage() {
         method: "POST",
         body: JSON.stringify({ status: newStatus }),
       });
-      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...updated, subtaskCount: t.subtaskCount, subtaskCompletedCount: t.subtaskCompletedCount } : t));
     } catch {}
   }
 
@@ -402,7 +409,7 @@ export default function ListPage() {
               {projectTags.map((tag) => (
                 <div
                   key={tag.id}
-                  className="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-[4px] group/tag"
+                  className="flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-sm group/tag"
                   style={{ background: tag.color + "22", color: tag.color }}
                 >
                   <span className="tracking-[0.04em] uppercase font-medium">
@@ -410,7 +417,7 @@ export default function ListPage() {
                   </span>
                   <button
                     onClick={() => handleDeleteTag(tag.id)}
-                    className="opacity-0 group-hover/tag:opacity-70 hover:!opacity-100 transition-opacity text-[11px] leading-none"
+                    className="opacity-0 group-hover/tag:opacity-70 hover:opacity-100! transition-opacity text-[11px] leading-none"
                     style={{
                       color: tag.color,
                       background: "none",
@@ -610,7 +617,7 @@ export default function ListPage() {
                 return (
                   <div
                     key={task.id}
-                    className="flex items-start border-b min-h-[46px] cursor-pointer transition-colors group/row"
+                    className="flex items-start border-b min-h-11.5 cursor-pointer transition-colors group/row"
                     style={{
                       borderColor: "var(--border)",
                       opacity: task.status === "done" ? 0.45 : 1,
@@ -684,26 +691,6 @@ export default function ListPage() {
                           >
                             {task.title}
                           </span>
-                          {task.status !== "done" && task.description && (
-                            <span
-                              className="text-[16px] leading-none opacity-30 shrink-0"
-                              style={{ color: "var(--text-secondary)" }}
-                            >
-                              ≡
-                            </span>
-                          )}
-                          {task.status !== "done" &&
-                            fmtMinutes(task.estimatedMinutes) && (
-                              <span
-                                className="text-[11px] opacity-45 flex items-center gap-1 shrink-0"
-                                style={{
-                                  color: "var(--text-secondary)",
-                                  fontFamily: "var(--font-mono)",
-                                }}
-                              >
-                                ⏱ {fmtMinutes(task.estimatedMinutes)}
-                              </span>
-                            )}
                         </div>
                         <div className="flex items-center gap-1.75 shrink-0 pt-0.5">
                           {task.priority === "high" && (
@@ -728,9 +715,38 @@ export default function ListPage() {
                       {/* Actions row */}
                       {task.status !== "done" && (
                         <div
-                          className="flex items-center justify-end gap-1.25 mt-1.25 min-h-6 opacity-0 group-hover/row:opacity-100 transition-opacity"
-                          style={{ ...(isRunning ? { opacity: 1 } : {}) }}
+                          className="flex items-center justify-between mt-1.25 min-h-6"
                         >
+                          <div className="flex items-center gap-2.5">
+                            {task.description && (
+                              <span
+                                className="text-[15px] leading-none"
+                                style={{ color: "var(--text-secondary)", opacity: 0.45 }}
+                              >
+                                ≡
+                              </span>
+                            )}
+                            {fmtMinutes(task.estimatedMinutes) && (
+                              <span
+                                className="text-[11px] flex items-center gap-1"
+                                style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.55 }}
+                              >
+                                ⏱ {fmtMinutes(task.estimatedMinutes)}
+                              </span>
+                            )}
+                            {(task.subtaskCount ?? 0) > 0 && (
+                              <span
+                                className="text-[11px] flex items-center gap-1"
+                                style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.6 }}
+                              >
+                                ◻ {task.subtaskCompletedCount ?? 0}/{task.subtaskCount}
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            className="opacity-0 group-hover/row:opacity-100 transition-opacity"
+                            style={{ ...(isRunning ? { opacity: 1 } : {}) }}
+                          >
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -764,6 +780,7 @@ export default function ListPage() {
                               "▶ Start"
                             )}
                           </button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -940,6 +957,11 @@ export default function ListPage() {
         onClose={() => setModal({ open: false, task: null })}
         onSave={handleSaveTask}
         onDelete={handleDeleteTask}
+        onSubtaskCountChange={(taskId, total, completed) =>
+          setTasks((prev) =>
+            prev.map((t) => (t.id === taskId ? { ...t, subtaskCount: total, subtaskCompletedCount: completed } : t)),
+          )
+        }
         projectTags={projectTags}
       />
 

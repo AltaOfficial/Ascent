@@ -49,7 +49,15 @@ export default function InboxPage() {
         apiFetch<Project[]>("/projects"),
         apiFetch<CalEvent[]>("/calendar-events"),
       ]);
-      setTasks(data);
+      const ids = data.map((t) => t.id);
+      let counts: Record<string, { total: number; completed: number }> = {};
+      if (ids.length) {
+        counts = await apiFetch<Record<string, { total: number; completed: number }>>("/tasks/subtask-counts", {
+          method: "POST",
+          body: JSON.stringify({ taskIds: ids }),
+        }).catch(() => ({}));
+      }
+      setTasks(data.map((t) => ({ ...t, subtaskCount: counts[t.id]?.total ?? 0, subtaskCompletedCount: counts[t.id]?.completed ?? 0 })));
       setProjects(projectList);
       setEvents(
         eventList.filter(
@@ -174,7 +182,7 @@ export default function InboxPage() {
         method: "POST",
         body: JSON.stringify(updates),
       });
-      setTasks((prev) => prev.map((task) => (task.id === id ? updated : task)));
+      setTasks((prev) => prev.map((task) => task.id === id ? { ...updated, subtaskCount: task.subtaskCount, subtaskCompletedCount: task.subtaskCompletedCount } : task));
     } catch {}
   }
 
@@ -364,6 +372,11 @@ export default function InboxPage() {
         onClose={() => setModalState({ open: false, task: null })}
         onSave={handleSaveTask}
         onDelete={handleDeleteTask}
+        onSubtaskCountChange={(taskId, total, completed) =>
+          setTasks((prev) =>
+            prev.map((t) => (t.id === taskId ? { ...t, subtaskCount: total, subtaskCompletedCount: completed } : t)),
+          )
+        }
       />
     </div>
   );

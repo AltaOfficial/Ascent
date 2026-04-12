@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request, HttpCode } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TaskEntity } from './entities/task.entity';
@@ -26,6 +26,12 @@ export class TasksController {
     return this.tasksService.create(req.user.userId, body);
   }
 
+  @Post('subtask-counts')
+  @HttpCode(200)
+  async getSubtaskCounts(@Body() body: { taskIds: string[] }) {
+    return this.tasksService.getSubtaskCounts(body.taskIds ?? []);
+  }
+
   @Post(':id/update')
   async updateTask(
     @Request() req,
@@ -38,6 +44,11 @@ export class TasksController {
   @Post(':id/delete')
   async deleteTask(@Request() req, @Param('id') id: string) {
     await this.tasksService.delete(id, req.user.userId);
+  }
+
+  @Get(':id/subtasks')
+  async getSubtasks(@Param('id') taskId: string) {
+    return this.tasksService.findSubtasksByTaskId(taskId);
   }
 
   @Post(':id/subtasks')

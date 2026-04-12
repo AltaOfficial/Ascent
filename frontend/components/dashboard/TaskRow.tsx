@@ -19,6 +19,8 @@ export type Task = {
   actualMinutes?: number | null;
   isHighValue: boolean;
   isRevenueImpact: boolean;
+  subtaskCount?: number;
+  subtaskCompletedCount?: number;
 };
 
 export function formatDueDate(
@@ -131,6 +133,14 @@ export function TaskRow({
             style={{ color: "var(--text-secondary)" }}
           >
             ≡
+          </span>
+        )}
+        {(task.subtaskCount ?? 0) > 0 && (
+          <span
+            className="text-[11px] shrink-0 flex items-center gap-0.5"
+            style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.6 }}
+          >
+            ◻ {task.subtaskCompletedCount ?? 0}/{task.subtaskCount}
           </span>
         )}
       </div>

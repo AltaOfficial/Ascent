@@ -38,6 +38,25 @@ export class TasksService {
     await this.taskRepository.delete({ id, userId });
   }
 
+  async findSubtasksByTaskId(taskId: string): Promise<SubtaskEntity[]> {
+    return await this.subtaskRepository.findBy({ taskId });
+  }
+
+  async getSubtaskCounts(taskIds: string[]): Promise<Record<string, { total: number; completed: number }>> {
+    if (!taskIds.length) return {};
+    const rows = await this.subtaskRepository
+      .createQueryBuilder('s')
+      .select('s.taskId', 'taskId')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect('SUM(CASE WHEN s.completed = true THEN 1 ELSE 0 END)', 'completed')
+      .where('s.taskId IN (:...taskIds)', { taskIds })
+      .groupBy('s.taskId')
+      .getRawMany();
+    return Object.fromEntries(
+      rows.map((r) => [r.taskId, { total: parseInt(r.total, 10), completed: parseInt(r.completed, 10) }]),
+    );
+  }
+
   async createSubtask(taskId: string, title: string): Promise<SubtaskEntity> {
     const subtask = this.subtaskRepository.create({ taskId, title });
     return await this.subtaskRepository.save(subtask);

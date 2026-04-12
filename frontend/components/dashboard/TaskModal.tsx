@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import React from "react";
+import { apiFetch } from "@/lib/api";
 
 type Status = "todo" | "in_progress" | "blocked" | "done";
 type Priority = "low" | "medium" | "high";
@@ -19,6 +20,14 @@ type Task = {
   actualMinutes?: number | null;
   isHighValue: boolean;
   isRevenueImpact: boolean;
+  subtaskCount?: number;
+};
+
+type Subtask = {
+  id: string;
+  title: string;
+  completed: boolean;
+  taskId: string;
 };
 
 export type ProjectTag = { id: string; name: string; color: string };
@@ -56,12 +65,14 @@ export function TaskModal({
   onClose,
   onSave,
   onDelete,
+  onSubtaskCountChange,
   projectTags = [],
 }: {
   state: TaskModalState;
   onClose: () => void;
   onSave: (id: string, updates: Partial<Task>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onSubtaskCountChange?: (taskId: string, total: number, completed: number) => void;
   projectTags?: ProjectTag[];
 }) {
   const { open, task } = state;
@@ -75,6 +86,12 @@ export function TaskModal({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [addingSubtask, setAddingSubtask] = useState(false);
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const mouseDownOnBackdrop = useRef(false);
+
   useEffect(() => {
     if (task) {
       setTitle(task.title);
@@ -84,6 +101,17 @@ export function TaskModal({
       setDueDate(task.dueDate ? task.dueDate.slice(0, 10) : "");
       setEstimatedRaw(formatEstimatedMinutes(task.estimatedMinutes));
       setNotes(task.description ?? "");
+      setSubtasks([]);
+      setNewSubtaskTitle("");
+      setAddingSubtask(false);
+      apiFetch<Subtask[]>(`/tasks/${task.id}/subtasks`)
+        .then((list) => {
+          const sorted = [...list].sort(
+            (a, b) => Number(a.completed) - Number(b.completed),
+          );
+          setSubtasks(sorted);
+        })
+        .catch(() => {});
     }
   }, [task]);
 
@@ -110,6 +138,55 @@ export function TaskModal({
     await onDelete(task.id);
     onClose();
   }
+
+  async function handleAddSubtask() {
+    if (!task || !newSubtaskTitle.trim()) {
+      setAddingSubtask(false);
+      setNewSubtaskTitle("");
+      return;
+    }
+    try {
+      const created = await apiFetch<Subtask>(`/tasks/${task.id}/subtasks`, {
+        method: "POST",
+        body: JSON.stringify({ title: newSubtaskTitle.trim() }),
+      });
+      const next = [...subtasks, created];
+      setSubtasks(next);
+      onSubtaskCountChange?.(task.id, next.length, next.filter((s) => s.completed).length);
+    } catch {}
+    setNewSubtaskTitle("");
+    subtaskInputRef.current?.focus();
+  }
+
+  async function handleToggleSubtask(subtask: Subtask) {
+    if (!task) return;
+    try {
+      const updated = await apiFetch<Subtask>(
+        `/tasks/${task.id}/subtasks/${subtask.id}/update`,
+        {
+          method: "POST",
+          body: JSON.stringify({ completed: !subtask.completed }),
+        },
+      );
+      const next = subtasks.map((s) => (s.id === subtask.id ? updated : s));
+      setSubtasks(next);
+      onSubtaskCountChange?.(task.id, next.length, next.filter((s) => s.completed).length);
+    } catch {}
+  }
+
+  async function handleDeleteSubtask(subtaskId: string) {
+    if (!task) return;
+    try {
+      await apiFetch(`/tasks/${task.id}/subtasks/${subtaskId}/delete`, {
+        method: "POST",
+      });
+      const next = subtasks.filter((s) => s.id !== subtaskId);
+      setSubtasks(next);
+      onSubtaskCountChange?.(task.id, next.length, next.filter((s) => s.completed).length);
+    } catch {}
+  }
+
+  const completedCount = subtasks.filter((s) => s.completed).length;
 
   const fieldSelectStyle: React.CSSProperties = {
     background: "var(--surface-2)",
@@ -228,10 +305,11 @@ export function TaskModal({
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-5"
       style={{ background: "rgba(0,0,0,0.72)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (e.target === e.currentTarget && mouseDownOnBackdrop.current) onClose(); }}
     >
       <div
-        className="w-full max-w-[480px] max-h-[90vh] overflow-y-auto rounded-xl border"
+        className="w-full max-w-120 max-h-[90vh] overflow-y-auto rounded-xl border"
         style={{ background: "var(--surface)", borderColor: "var(--border-mid)" }}
       >
         {/* Title */}
@@ -272,13 +350,139 @@ export function TaskModal({
           ))}
         </div>
 
+        {/* Subtasks */}
+        <div className="p-5 border-b" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[9px] tracking-[0.08em] uppercase"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Subtasks
+              </span>
+              {subtasks.length > 0 && (
+                <span
+                  className="text-[9px] tracking-[0.04em]"
+                  style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.6 }}
+                >
+                  {completedCount}/{subtasks.length}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setAddingSubtask(true);
+                setTimeout(() => subtaskInputRef.current?.focus(), 0);
+              }}
+              className="text-[10px] transition-colors"
+              style={{ color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              + Add
+            </button>
+          </div>
+
+          {subtasks.length === 0 && !addingSubtask && (
+            <div
+              className="text-[11px] tracking-[0.02em]"
+              style={{ color: "var(--text-secondary)", opacity: 0.4 }}
+            >
+              No subtasks
+            </div>
+          )}
+
+          <div className="flex flex-col gap-0.5">
+            {subtasks.map((subtask) => (
+              <div
+                key={subtask.id}
+                className="flex items-center gap-2 group/subtask py-0.5"
+              >
+                <button
+                  onClick={() => handleToggleSubtask(subtask)}
+                  className="w-3.5 h-3.5 border rounded-[3px] flex items-center justify-center shrink-0 transition-colors"
+                  style={{
+                    borderColor: subtask.completed
+                      ? "rgba(107,187,138,0.35)"
+                      : "var(--border-mid)",
+                    background: subtask.completed
+                      ? "rgba(107,187,138,0.12)"
+                      : "transparent",
+                  }}
+                >
+                  {subtask.completed && (
+                    <span style={{ fontSize: 8, color: "rgba(107,187,138,0.9)", lineHeight: 1 }}>
+                      ✓
+                    </span>
+                  )}
+                </button>
+                <span
+                  className="flex-1 text-[12px] tracking-[0.01em]"
+                  style={{
+                    color: subtask.completed ? "var(--text-secondary)" : "var(--text-primary)",
+                    textDecoration: subtask.completed ? "line-through" : "none",
+                    opacity: subtask.completed ? 0.55 : 1,
+                  }}
+                >
+                  {subtask.title}
+                </span>
+                <button
+                  onClick={() => handleDeleteSubtask(subtask.id)}
+                  className="opacity-0 group-hover/subtask:opacity-100 text-[13px] leading-none transition-opacity"
+                  style={{ color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(217,107,107,0.8)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {addingSubtask && (
+            <div className="flex items-center gap-2 mt-1">
+              <div
+                className="w-3.5 h-3.5 border rounded-[3px] shrink-0"
+                style={{ borderColor: "var(--border-mid)" }}
+              />
+              <input
+                ref={subtaskInputRef}
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddSubtask();
+                  if (e.key === "Escape") {
+                    setAddingSubtask(false);
+                    setNewSubtaskTitle("");
+                  }
+                }}
+                onBlur={() => {
+                  if (!newSubtaskTitle.trim()) {
+                    setAddingSubtask(false);
+                    setNewSubtaskTitle("");
+                  } else {
+                    handleAddSubtask();
+                  }
+                }}
+                placeholder="Subtask title..."
+                className="flex-1 bg-transparent border-b outline-none text-[12px] tracking-[0.01em] py-0.5"
+                style={{
+                  color: "var(--text-primary)",
+                  borderColor: "var(--border-mid)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         {/* Notes */}
         <div className="p-5">
           <div className="text-[9px] tracking-[0.08em] uppercase mb-2" style={{ color: "var(--text-secondary)" }}>
             Notes
           </div>
           <textarea
-            className="w-full rounded-lg border px-3 py-2.5 text-[12px] outline-none resize-y min-h-[80px] leading-relaxed"
+            className="w-full rounded-lg border px-3 py-2.5 text-[12px] outline-none resize-y min-h-20 leading-relaxed"
             style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
