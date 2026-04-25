@@ -19,18 +19,18 @@ function getHeatLevel(hours: number): number {
   return 4;
 }
 
-export function HeatmapCard({ last30 }: { last30: number[] }) {
+export function HeatmapCard({ last90 }: { last90: number[] }) {
   const today = new Date();
-  const startDate = subDays(today, 29);
+  const startDate = subDays(today, 89);
 
   return (
     <Card className="md:p-6">
-      <CardLabel>30-Day Heatmap</CardLabel>
+      <CardLabel>90-Day Heatmap</CardLabel>
       <div className="flex flex-wrap gap-1">
-        {last30.map((hours, index) => (
+        {last90.map((hours, index) => (
           <div
             key={index}
-            title={`${format(subDays(today, 29 - index), "MMM d")}: ${hours}h`}
+            title={`${format(subDays(today, 89 - index), "MMM d")}: ${hours}h`}
             className="w-4 h-4 rounded-[2px] border"
             style={{
               background: HEATMAP_COLORS[getHeatLevel(hours)],

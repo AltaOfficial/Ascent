@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTimerStore } from "@/lib/timerStore";
 
 const NAV = [{ label: "Dashboard", href: "/dashboard" }];
@@ -50,9 +50,23 @@ export default function Sidebar({
   onStop?: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [tasksOpen, setTasksOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { activeEntry, activeTask } = useTimerStore();
   const [elapsedDisplay, setElapsedDisplay] = useState("0:00");
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!activeEntry) return;
@@ -242,7 +256,8 @@ export default function Sidebar({
 
       {/* Footer */}
       <div
-        className="flex items-center gap-2.5 px-4.5 py-3.5 border-t mt-auto"
+        ref={menuRef}
+        className="relative flex items-center gap-2.5 px-4.5 py-3.5 border-t mt-auto"
         style={{ borderColor: "var(--border)" }}
       >
         <div
@@ -256,11 +271,61 @@ export default function Sidebar({
           {user ? `${user.firstName[0]}${user.lastName[0]}` : "—"}
         </div>
         <span
-          className="text-[13px] tracking-[0.02em]"
+          className="flex-1 text-[13px] tracking-[0.02em] truncate"
           style={{ color: "var(--text-secondary)" }}
         >
           {user ? `${user.firstName} ${user.lastName}` : ""}
         </span>
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          className="flex flex-col items-center justify-center gap-0.75 w-5 h-5 shrink-0 rounded transition-colors"
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", opacity: menuOpen ? 1 : 0.5 }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+          onMouseLeave={(e) => { if (!menuOpen) (e.currentTarget as HTMLElement).style.opacity = "0.5"; }}
+        >
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="block rounded-full"
+              style={{ width: 3, height: 3, background: "currentColor" }}
+            />
+          ))}
+        </button>
+
+        {menuOpen && (
+          <div
+            className="absolute left-3 right-3 rounded-lg border overflow-hidden"
+            style={{
+              bottom: "calc(100% + 6px)",
+              background: "var(--surface)",
+              borderColor: "var(--border-mid)",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.35)",
+              zIndex: 50,
+            }}
+          >
+            {[
+              { label: "Settings", href: "/dashboard/settings" },
+              { label: "Time entries", href: "/dashboard/time-entries" },
+            ].map(({ label, href }) => (
+              <button
+                key={href}
+                onClick={() => { setMenuOpen(false); router.push(href); }}
+                className="w-full text-left px-3.5 py-2.5 text-[12px] tracking-[0.02em] transition-colors"
+                style={{ color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-mono)" }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--surface-2)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "none";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </aside>
   );

@@ -39,6 +39,7 @@ export class AuthService {
       lastName: signupDto.lastName,
       email: signupDto.email,
       password: signupDto.password,
+      timezone: signupDto.timezone ?? 'UTC',
     });
 
     if (!user) {

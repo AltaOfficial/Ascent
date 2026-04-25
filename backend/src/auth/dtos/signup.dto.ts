@@ -4,4 +4,5 @@ export class SignupDto {
   inviteCode: string;
   firstName: string;
   lastName: string;
+  timezone?: string;
 }

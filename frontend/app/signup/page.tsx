@@ -105,6 +105,7 @@ export default function SignupPage() {
           email,
           password: pw,
           inviteCode,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
       setTokenCookie(result.access_token);

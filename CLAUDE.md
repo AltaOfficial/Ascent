@@ -81,6 +81,7 @@ JWT_SECRET=<same as backend>
 ## Key Conventions
 
 - Never use `localStorage` or `sessionStorage` — persist state to the database via the API.
+- Only use `GET` and `POST` HTTP methods — never `PATCH`, `PUT`, or `DELETE`. Model all mutations as POST endpoints (e.g. `POST /tasks/:id/update`, `POST /tasks/:id/delete`).
 - Backend DTOs use `class-validator` decorators for request validation.
 - TypeORM entities define both DB schema and TypeScript types — keep them in sync.
 - `synchronize: true` is dev-only; never enable in production.

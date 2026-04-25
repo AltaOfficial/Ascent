@@ -22,7 +22,14 @@ export class UsersController {
   async getMe(@Request() req) {
     return await this.usersService.findOneById(req.user.userId);
   }
-  
+
+  @Post('settings')
+  async updateSettings(
+    @Request() req,
+    @Body() body: { timezone?: string; weekStart?: string },
+  ) {
+    return await this.usersService.updateSettings(req.user.userId, body);
+  }
 
   @Post('hours')
   async getHours(

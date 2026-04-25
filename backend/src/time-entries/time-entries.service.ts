@@ -63,6 +63,34 @@ export class TimeEntriesService {
       .getMany();
   }
 
+  async findAllByUser(
+    userId: string,
+  ): Promise<
+    {
+      id: string;
+      taskId: string;
+      startedAt: Date;
+      endedAt: Date | null;
+      durationMinutes: number | null;
+    }[]
+  > {
+    const entries = await this.timeEntryRepository.find({
+      where: { userId },
+      order: { startedAt: 'DESC' },
+    });
+
+    return entries.map((e) => ({
+      id: e.id,
+      taskId: e.taskId,
+      startedAt: e.startedAt,
+      endedAt: e.endedAt ?? null,
+      durationMinutes:
+        e.startedAt && e.endedAt
+          ? Math.round((e.endedAt.getTime() - e.startedAt.getTime()) / 60000)
+          : null,
+    }));
+  }
+
   async getTotalsByTaskIds(
     taskIds: string[],
     userId: string,

@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import {
-  format,
-  startOfWeek,
-  addDays,
-  subDays,
-  parseISO,
-} from "date-fns";
+import { format, startOfWeek, addDays, subDays, parseISO } from "date-fns";
 import { apiFetch } from "@/lib/api";
 
 const WEEK_DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -33,26 +27,24 @@ function getWeekDates(): string[] {
   const today = new Date();
   const monday = startOfWeek(today, { weekStartsOn: 1 });
   return Array.from({ length: 7 }, (_, index) =>
-    format(addDays(monday, index), "yyyy-MM-dd")
+    format(addDays(monday, index), "yyyy-MM-dd"),
   );
 }
 
 function formatWeekRange(weekDates: string[]): string {
-  const formatDate = (dateStr: string) =>
-    format(parseISO(dateStr), "MMMM d");
+  const formatDate = (dateStr: string) => format(parseISO(dateStr), "MMMM d");
   return `${formatDate(weekDates[0])} – ${formatDate(weekDates[6])}`;
 }
 
 function formatHeatmapRange(dates: string[]): string {
-  const formatDate = (dateStr: string) =>
-    format(parseISO(dateStr), "MMM d");
+  const formatDate = (dateStr: string) => format(parseISO(dateStr), "MMM d");
   return `${formatDate(dates[0])} – ${formatDate(dates[dates.length - 1])}`;
 }
 
-function get30DayDates(): string[] {
+function get90DayDates(): string[] {
   const today = new Date();
-  return Array.from({ length: 30 }, (_, index) =>
-    format(subDays(today, 29 - index), "yyyy-MM-dd")
+  return Array.from({ length: 90 }, (_, index) =>
+    format(subDays(today, 89 - index), "yyyy-MM-dd"),
   );
 }
 
@@ -81,7 +73,7 @@ export default function CompliancePage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const weekDates = useMemo(() => getWeekDates(), []);
-  const heatmapDates = useMemo(() => get30DayDates(), []);
+  const heatmapDates = useMemo(() => get90DayDates(), []);
   const currentDayIndex = getCurrentDayIndex();
   const todayDate = format(new Date(), "yyyy-MM-dd");
 
@@ -91,7 +83,7 @@ export default function CompliancePage() {
         const [fetchedRules, fetchedEntries] = await Promise.all([
           apiFetch<Rule[]>("/compliance/rules"),
           apiFetch<Entry[]>(
-            `/compliance/entries?start=${heatmapDates[0]}&end=${heatmapDates[29]}`
+            `/compliance/entries?start=${heatmapDates[0]}&end=${heatmapDates[89]}`,
           ),
         ]);
         setRules(fetchedRules);
@@ -110,7 +102,10 @@ export default function CompliancePage() {
   }, [addingRule]);
 
   function isEntryChecked(ruleId: string, date: string): boolean {
-    return entries.some((entry) => entry.ruleId === ruleId && entry.date === date && entry.checked);
+    return entries.some(
+      (entry) =>
+        entry.ruleId === ruleId && entry.date === date && entry.checked,
+    );
   }
 
   async function toggleEntry(ruleId: string, date: string) {
@@ -119,7 +114,9 @@ export default function CompliancePage() {
 
     // Optimistic update
     setEntries((prev) => {
-      const withoutEntry = prev.filter((entry) => !(entry.ruleId === ruleId && entry.date === date));
+      const withoutEntry = prev.filter(
+        (entry) => !(entry.ruleId === ruleId && entry.date === date),
+      );
       return [...withoutEntry, { ruleId, date, checked: nowChecked }];
     });
 
@@ -131,7 +128,9 @@ export default function CompliancePage() {
     } catch {
       // Revert on failure
       setEntries((prev) => {
-        const withoutEntry = prev.filter((entry) => !(entry.ruleId === ruleId && entry.date === date));
+        const withoutEntry = prev.filter(
+          (entry) => !(entry.ruleId === ruleId && entry.date === date),
+        );
         return [...withoutEntry, { ruleId, date, checked: wasChecked }];
       });
     }
@@ -163,9 +162,9 @@ export default function CompliancePage() {
     const daysElapsed = currentDayIndex + 1;
     return rules.map((rule) => {
       if (daysElapsed === 0) return 0;
-      const checkedCount = weekDates.slice(0, daysElapsed).filter((date) =>
-        isEntryChecked(rule.id, date)
-      ).length;
+      const checkedCount = weekDates
+        .slice(0, daysElapsed)
+        .filter((date) => isEntryChecked(rule.id, date)).length;
       return Math.round((checkedCount / daysElapsed) * 100);
     });
   }, [rules, entries, weekDates, currentDayIndex]);
@@ -176,8 +175,11 @@ export default function CompliancePage() {
     const totalPossible = rules.length * daysElapsed;
     const totalChecked = rules.reduce(
       (sum, rule) =>
-        sum + weekDates.slice(0, daysElapsed).filter((date) => isEntryChecked(rule.id, date)).length,
-      0
+        sum +
+        weekDates
+          .slice(0, daysElapsed)
+          .filter((date) => isEntryChecked(rule.id, date)).length,
+      0,
     );
     return Math.round((totalChecked / totalPossible) * 100);
   }, [rules, entries, weekDates, currentDayIndex]);
@@ -185,7 +187,9 @@ export default function CompliancePage() {
   const heatmapLevels = useMemo(() => {
     if (rules.length === 0) return heatmapDates.map(() => 0);
     return heatmapDates.map((date) => {
-      const checkedCount = rules.filter((rule) => isEntryChecked(rule.id, date)).length;
+      const checkedCount = rules.filter((rule) =>
+        isEntryChecked(rule.id, date),
+      ).length;
       return Math.min(4, checkedCount);
     });
   }, [rules, entries, heatmapDates]);
@@ -193,7 +197,10 @@ export default function CompliancePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <span className="text-[12px] tracking-[0.06em] uppercase" style={{ color: "var(--text-secondary)" }}>
+        <span
+          className="text-[12px] tracking-[0.06em] uppercase"
+          style={{ color: "var(--text-secondary)" }}
+        >
           Loading...
         </span>
       </div>
@@ -201,32 +208,49 @@ export default function CompliancePage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "var(--border) transparent" }}>
+    <div
+      className="flex-1 overflow-y-auto"
+      style={{
+        scrollbarWidth: "thin",
+        scrollbarColor: "var(--border) transparent",
+      }}
+    >
       <div className="max-w-185 mx-auto px-8 py-13">
-
         {/* Header */}
         <div className="flex justify-between items-end mb-13">
           <div>
             <div
               className="text-[13px] tracking-[0.04em] uppercase mb-1"
-              style={{ fontFamily: "var(--font-display)", color: "var(--text-secondary)" }}
+              style={{
+                fontFamily: "var(--font-display)",
+                color: "var(--text-secondary)",
+              }}
             >
               Current week
             </div>
             <div
               className="text-[22px] font-semibold tracking-[-0.02em]"
-              style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+              style={{
+                fontFamily: "var(--font-display)",
+                color: "var(--text-primary)",
+              }}
             >
               {formatWeekRange(weekDates)}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[11px] tracking-[0.06em] uppercase mb-1" style={{ color: "var(--text-secondary)" }}>
+            <div
+              className="text-[11px] tracking-[0.06em] uppercase mb-1"
+              style={{ color: "var(--text-secondary)" }}
+            >
               Weekly Compliance
             </div>
             <div
               className="text-[28px] font-semibold tracking-[-0.03em]"
-              style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+              style={{
+                fontFamily: "var(--font-display)",
+                color: "var(--text-primary)",
+              }}
             >
               {rules.length === 0 ? "—" : `${overallPct}%`}
             </div>
@@ -236,14 +260,21 @@ export default function CompliancePage() {
         {/* Weekly Rule Grid */}
         <div className="mb-13">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-[10px] tracking-widest uppercase" style={{ color: "var(--text-secondary)" }}>
+            <div
+              className="text-[10px] tracking-widest uppercase"
+              style={{ color: "var(--text-secondary)" }}
+            >
               Weekly Rule Grid
             </div>
             <button
               type="button"
               onClick={() => setAddingRule(true)}
               className="text-[10px] tracking-[0.06em] uppercase px-2.5 py-1 rounded-sm transition-colors cursor-pointer"
-              style={{ color: "var(--text-secondary)", border: "1px solid var(--border)", background: "none" }}
+              style={{
+                color: "var(--text-secondary)",
+                border: "1px solid var(--border)",
+                background: "none",
+              }}
             >
               + Add rule
             </button>
@@ -252,7 +283,10 @@ export default function CompliancePage() {
           {rules.length === 0 && !addingRule ? (
             <div
               className="py-10 text-center text-[12px] tracking-[0.04em] rounded-md border"
-              style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+              style={{
+                color: "var(--text-secondary)",
+                borderColor: "var(--border)",
+              }}
             >
               No rules yet. Add one to start tracking.
             </div>
@@ -303,13 +337,18 @@ export default function CompliancePage() {
                             className="inline-flex items-center justify-center w-5.5 h-5.5 rounded-sm transition-all duration-150"
                             style={{
                               border: `1px solid ${checked ? "rgba(200,200,210,0.35)" : "var(--border-mid)"}`,
-                              background: checked ? "rgba(200,200,210,0.15)" : "transparent",
+                              background: checked
+                                ? "rgba(200,200,210,0.15)"
+                                : "transparent",
                               opacity: isFuture ? 0.25 : 1,
                               cursor: isFuture ? "default" : "pointer",
                             }}
                           >
                             {checked && (
-                              <span className="w-2 h-2 rounded-xs" style={{ background: "rgba(200,200,210,0.9)" }} />
+                              <span
+                                className="w-2 h-2 rounded-xs"
+                                style={{ background: "rgba(200,200,210,0.9)" }}
+                              />
                             )}
                           </button>
                         </td>
@@ -320,7 +359,11 @@ export default function CompliancePage() {
                         type="button"
                         onClick={() => deleteRule(rule.id)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] cursor-pointer"
-                        style={{ color: "var(--text-secondary)", background: "none", border: "none" }}
+                        style={{
+                          color: "var(--text-secondary)",
+                          background: "none",
+                          border: "none",
+                        }}
                         title="Delete rule"
                       >
                         ✕
@@ -330,10 +373,16 @@ export default function CompliancePage() {
                 ))}
 
                 {addingRule && (
-                  <tr className="border-t" style={{ borderColor: "var(--border)" }}>
+                  <tr
+                    className="border-t"
+                    style={{ borderColor: "var(--border)" }}
+                  >
                     <td colSpan={9} className="py-3">
                       <form
-                        onSubmit={(e) => { e.preventDefault(); addRule(); }}
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          addRule();
+                        }}
                         className="flex items-center gap-2"
                       >
                         <input
@@ -353,15 +402,27 @@ export default function CompliancePage() {
                         <button
                           type="submit"
                           className="px-3 py-1.5 rounded-[5px] text-[11px] tracking-[0.04em] cursor-pointer transition-opacity"
-                          style={{ background: "var(--text-primary)", color: "var(--bg)", border: "none", fontFamily: "var(--font-mono)" }}
+                          style={{
+                            background: "var(--text-primary)",
+                            color: "var(--bg)",
+                            border: "none",
+                            fontFamily: "var(--font-mono)",
+                          }}
                         >
                           Add
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setAddingRule(false); setNewRuleName(""); }}
+                          onClick={() => {
+                            setAddingRule(false);
+                            setNewRuleName("");
+                          }}
                           className="px-2 py-1.5 text-[11px] cursor-pointer"
-                          style={{ color: "var(--text-secondary)", background: "none", border: "none" }}
+                          style={{
+                            color: "var(--text-secondary)",
+                            background: "none",
+                            border: "none",
+                          }}
                         >
                           Cancel
                         </button>
@@ -374,68 +435,13 @@ export default function CompliancePage() {
           )}
         </div>
 
-        <div className="h-px mb-10" style={{ background: "var(--border)" }} />
-
-        {/* Per-rule stats */}
-        <div className="mb-13">
-          <div className="text-[10px] tracking-widest uppercase mb-4" style={{ color: "var(--text-secondary)" }}>
-            This Week
-          </div>
-          {rules.length === 0 ? (
-            <div className="text-[12px] tracking-[0.04em]" style={{ color: "var(--text-secondary)" }}>
-              No rules to display.
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-col">
-                {rules.map((rule, ruleIndex) => (
-                  <div
-                    key={rule.id}
-                    className="flex items-center gap-3.5 py-2.5 border-b"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <span
-                      className="text-[12px] tracking-[0.02em] whitespace-nowrap shrink-0"
-                      style={{ width: 160, color: "var(--text-secondary)" }}
-                    >
-                      {rule.name}
-                    </span>
-                    <div className="flex-1 h-px rounded-[1px] overflow-hidden" style={{ background: "var(--border)" }}>
-                      <div
-                        className="h-full rounded-[1px] transition-all duration-500"
-                        style={{ width: `${rulePcts[ruleIndex]}%`, background: "rgba(200,200,210,0.4)" }}
-                      />
-                    </div>
-                    <span className="text-[12px] w-9 text-right shrink-0" style={{ color: "var(--text-primary)" }}>
-                      {rulePcts[ruleIndex]}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div
-                className="flex items-center justify-between pt-4 mt-1 border-t"
-                style={{ borderColor: "var(--border-mid)" }}
-              >
-                <span className="text-[11px] tracking-[0.08em] uppercase" style={{ color: "var(--text-secondary)" }}>
-                  Overall
-                </span>
-                <span
-                  className="text-[20px] font-semibold tracking-[-0.02em]"
-                  style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
-                >
-                  {overallPct}%
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="h-px mb-10" style={{ background: "var(--border)" }} />
-
-        {/* 30-day heatmap */}
+        {/* 90-day heatmap */}
         <div>
-          <div className="text-[10px] tracking-widest uppercase mb-4" style={{ color: "var(--text-secondary)" }}>
-            30-Day Context
+          <div
+            className="text-[10px] tracking-widest uppercase mb-4"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            90-Day Context
           </div>
           <div className="flex flex-wrap gap-0.75">
             {heatmapLevels.map((level, index) => {
@@ -447,7 +453,9 @@ export default function CompliancePage() {
                   style={{
                     background: HEATMAP_BG[level] ?? HEATMAP_BG[0],
                     border: `1px solid ${HEATMAP_BORDER[level] ?? HEATMAP_BORDER[0]}`,
-                    boxShadow: isToday ? "0 0 0 1px rgba(200,200,210,0.5)" : undefined,
+                    boxShadow: isToday
+                      ? "0 0 0 1px rgba(200,200,210,0.5)"
+                      : undefined,
                   }}
                   title={`${heatmapDates[index]} — ${level > 0 ? Math.round((level / Math.max(rules.length, 1)) * 100) : 0}% compliance`}
                 />
@@ -455,11 +463,19 @@ export default function CompliancePage() {
             })}
           </div>
           <div className="flex justify-between items-center mt-2.5">
-            <span className="text-[10px] tracking-[0.04em]" style={{ color: "var(--text-secondary)" }}>
+            <span
+              className="text-[10px] tracking-[0.04em]"
+              style={{ color: "var(--text-secondary)" }}
+            >
               {formatHeatmapRange(heatmapDates)}
             </span>
             <div className="flex items-center gap-1">
-              <span className="text-[10px] tracking-[0.04em] mr-0.5" style={{ color: "var(--text-secondary)" }}>less</span>
+              <span
+                className="text-[10px] tracking-[0.04em] mr-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                less
+              </span>
               {Object.values(HEATMAP_BG).map((bg, index) => (
                 <div
                   key={index}
@@ -467,11 +483,15 @@ export default function CompliancePage() {
                   style={{ background: bg, border: "1px solid var(--border)" }}
                 />
               ))}
-              <span className="text-[10px] tracking-[0.04em] ml-0.5" style={{ color: "var(--text-secondary)" }}>more</span>
+              <span
+                className="text-[10px] tracking-[0.04em] ml-0.5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                more
+              </span>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

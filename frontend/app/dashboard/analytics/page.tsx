@@ -23,7 +23,7 @@ export default function AnalyticsPage() {
   const [sessionTrend] = useState<number[]>([]);
   const [accuracyData] = useState<AccuracyEntry[]>([]);
 
-  const last30 = rawHours.slice(-30);
+  const last90 = rawHours.slice(-90);
   const last14 = rawHours.slice(-14);
 
   return (
@@ -57,8 +57,8 @@ export default function AnalyticsPage() {
       <section className="mb-16">
         <SectionTag>Consistency</SectionTag>
         <div className="flex flex-col gap-3">
-          <HeatmapCard last30={last30} />
-          <ConsistencyCard last30={last30} />
+          <HeatmapCard last90={last90} />
+          <ConsistencyCard last30={last90} />
         </div>
       </section>
 

@@ -16,4 +16,10 @@ export class UserEntity {
 
   @Column()
   password: string;
+
+  @Column({ default: 'UTC' })
+  timezone: string;
+
+  @Column({ default: 'monday' })
+  weekStart: string;
 }

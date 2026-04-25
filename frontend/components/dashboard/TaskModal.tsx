@@ -7,6 +7,8 @@ import { apiFetch } from "@/lib/api";
 type Status = "todo" | "in_progress" | "blocked" | "done";
 type Priority = "low" | "medium" | "high";
 
+type RepeatFrequency = "daily" | "weekly" | "custom";
+
 type Task = {
   id: string;
   title: string;
@@ -21,6 +23,10 @@ type Task = {
   isHighValue: boolean;
   isRevenueImpact: boolean;
   subtaskCount?: number;
+  repeatEnabled?: boolean;
+  repeatFrequency?: RepeatFrequency | null;
+  repeatDays?: number[] | null;
+  repeatInterval?: number | null;
 };
 
 type Subtask = {
@@ -92,6 +98,11 @@ export function TaskModal({
   const subtaskInputRef = useRef<HTMLInputElement>(null);
   const mouseDownOnBackdrop = useRef(false);
 
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [repeatFrequency, setRepeatFrequency] = useState<RepeatFrequency>("daily");
+  const [repeatDays, setRepeatDays] = useState<number[]>([]);
+  const [repeatInterval, setRepeatInterval] = useState(2);
+
   useEffect(() => {
     if (task) {
       setTitle(task.title);
@@ -101,6 +112,10 @@ export function TaskModal({
       setDueDate(task.dueDate ? task.dueDate.slice(0, 10) : "");
       setEstimatedRaw(formatEstimatedMinutes(task.estimatedMinutes));
       setNotes(task.description ?? "");
+      setRepeatEnabled(task.repeatEnabled ?? false);
+      setRepeatFrequency(task.repeatFrequency ?? "daily");
+      setRepeatDays(task.repeatDays ?? []);
+      setRepeatInterval(task.repeatInterval ?? 2);
       setSubtasks([]);
       setNewSubtaskTitle("");
       setAddingSubtask(false);
@@ -128,6 +143,10 @@ export function TaskModal({
       dueDate: dueDate || null,
       estimatedMinutes: parseEstimatedInput(estimatedRaw),
       description: notes || null,
+      repeatEnabled,
+      repeatFrequency: repeatEnabled ? repeatFrequency : null,
+      repeatDays: repeatEnabled && repeatFrequency === "weekly" ? repeatDays : null,
+      repeatInterval: repeatEnabled && repeatFrequency === "custom" ? repeatInterval : null,
     });
     setSaving(false);
     onClose();
@@ -472,6 +491,147 @@ export function TaskModal({
                   fontFamily: "var(--font-mono)",
                 }}
               />
+            </div>
+          )}
+        </div>
+
+        {/* Repeat */}
+        <div className="p-5 border-b" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] tracking-[0.08em] uppercase" style={{ color: "var(--text-secondary)" }}>
+              Repeat
+            </span>
+            <button
+              onClick={() => setRepeatEnabled((v) => !v)}
+              className="relative w-8 h-4 rounded-full transition-colors duration-200 shrink-0"
+              style={{
+                background: repeatEnabled ? "var(--border-mid)" : "var(--border-mid)",
+                opacity: repeatEnabled ? 1 : 0.5,
+              }}
+            >
+              <span
+                className="absolute top-0.5 rounded-full transition-all duration-200"
+                style={{
+                  width: 12,
+                  height: 12,
+                  background: "var(--text-primary)",
+                  left: repeatEnabled ? "calc(100% - 14px)" : 2,
+                  opacity: repeatEnabled ? 1 : 0.3,
+                }}
+              />
+            </button>
+          </div>
+
+          {repeatEnabled && (
+            <div className="mt-3 flex flex-col gap-3">
+              {/* Frequency pills */}
+              <div className="flex gap-1.5">
+                {(["daily", "weekly", "custom"] as RepeatFrequency[]).map((freq) => (
+                  <button
+                    key={freq}
+                    onClick={() => setRepeatFrequency(freq)}
+                    className="px-3 py-1 rounded-full text-[10px] tracking-[0.05em] capitalize transition-all duration-150"
+                    style={
+                      repeatFrequency === freq
+                        ? {
+                            background: "var(--text-primary)",
+                            color: "var(--bg)",
+                            fontFamily: "var(--font-mono)",
+                          }
+                        : {
+                            background: "var(--surface-2)",
+                            color: "var(--text-secondary)",
+                            border: "1px solid var(--border)",
+                            fontFamily: "var(--font-mono)",
+                          }
+                    }
+                  >
+                    {freq}
+                  </button>
+                ))}
+              </div>
+
+              {/* Weekly day picker */}
+              {repeatFrequency === "weekly" && (
+                <div className="flex gap-1.5">
+                  {["S", "M", "T", "W", "T", "F", "S"].map((label, i) => {
+                    const active = repeatDays.includes(i);
+                    return (
+                      <button
+                        key={i}
+                        onClick={() =>
+                          setRepeatDays((prev) =>
+                            prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i],
+                          )
+                        }
+                        className="w-7 h-7 rounded-full text-[10px] font-medium transition-all duration-150"
+                        style={
+                          active
+                            ? {
+                                background: "var(--surface-2)",
+                                color: "var(--text-primary)",
+                                border: "1px solid var(--border-mid)",
+                                fontFamily: "var(--font-mono)",
+                              }
+                            : {
+                                background: "var(--surface-2)",
+                                color: "var(--text-secondary)",
+                                border: "1px solid var(--border)",
+                                fontFamily: "var(--font-mono)",
+                                opacity: 0.5,
+                              }
+                        }
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Custom interval */}
+              {repeatFrequency === "custom" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px]" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                    Every
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={repeatInterval}
+                    onChange={(e) => setRepeatInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-14 rounded-md border px-2 py-1 text-[11px] text-center outline-none"
+                    style={{
+                      background: "var(--surface-2)",
+                      borderColor: "var(--border)",
+                      color: "var(--text-primary)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  />
+                  <span className="text-[11px]" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                    days
+                  </span>
+                </div>
+              )}
+
+              {/* Summary label */}
+              <div
+                className="text-[10px] tracking-[0.03em] px-2.5 py-1.5 rounded-md"
+                style={{
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-secondary)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {repeatFrequency === "daily" && "Repeats every day"}
+                {repeatFrequency === "weekly" &&
+                  (repeatDays.length === 0
+                    ? "Pick days above"
+                    : `Repeats every ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].filter((_, i) => repeatDays.includes(i)).join(", ")}`)}
+                {repeatFrequency === "custom" && `Repeats every ${repeatInterval} day${repeatInterval === 1 ? "" : "s"}`}
+              </div>
             </div>
           )}
         </div>
