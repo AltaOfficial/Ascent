@@ -48,17 +48,22 @@ export class TaskEntity {
   @Column({ nullable: true })
   categoryTag: string;
 
+  @Column({ nullable: true })
+  repeatEnabled: boolean;
+
+  @Column({
+    nullable: true,
+    type: 'enum',
+    enum: TaskPriority,
+    default: TaskPriority.LOW,
+  })
+  repeatFrequency: TaskPriority;
+
   @Column({ nullable: true, type: 'timestamp' })
   dueDate: Date;
 
   @Column({ nullable: true })
   estimatedMinutes: number;
-
-  @Column({ default: false })
-  isHighValue: boolean;
-
-  @Column({ default: false })
-  isRevenueImpact: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

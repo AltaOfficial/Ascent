@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { TaskEntity, TaskStatus } from './entities/task.entity';
 import { SubtaskEntity } from './entities/subtask.entity';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class TasksService {
@@ -13,20 +14,32 @@ export class TasksService {
     private readonly subtaskRepository: Repository<SubtaskEntity>,
   ) {}
 
+  @Cron('0 * * * * *')
+  repeatingTaskCron() {
+    console.log('Running repeating task cron job');
+  }
+
   async findAllByUserId(userId: string): Promise<TaskEntity[]> {
     return await this.taskRepository.findBy({ userId });
   }
 
-  async findAllByTaskIdsAndUserId(userId: string, taskIds: [string]): Promise<TaskEntity[]> {
-    return await this.taskRepository.find({ 
+  async findAllByTaskIdsAndUserId(
+    userId: string,
+    taskIds: [string],
+  ): Promise<TaskEntity[]> {
+    return await this.taskRepository.find({
       where: {
         id: In(taskIds),
-        userId: userId
-      }
-     });
+        userId: userId,
+      },
+    });
   }
 
-  async findByFilter(userId: string, projectId: string | null | undefined, status?: string): Promise<TaskEntity[]> {
+  async findByFilter(
+    userId: string,
+    projectId: string | null | undefined,
+    status?: string,
+  ): Promise<TaskEntity[]> {
     const whereClause: any = { userId };
     if (projectId !== undefined) whereClause.projectId = projectId;
     if (status) whereClause.status = status;
@@ -38,7 +51,11 @@ export class TasksService {
     return await this.taskRepository.save(task);
   }
 
-  async update(id: string, userId: string, updates: Partial<TaskEntity>): Promise<TaskEntity | null> {
+  async update(
+    id: string,
+    userId: string,
+    updates: Partial<TaskEntity>,
+  ): Promise<TaskEntity | null> {
     await this.taskRepository.update({ id, userId }, updates);
     return await this.taskRepository.findOneBy({ id });
   }
@@ -51,18 +68,26 @@ export class TasksService {
     return await this.subtaskRepository.findBy({ taskId });
   }
 
-  async getSubtaskCounts(taskIds: string[]): Promise<Record<string, { total: number; completed: number }>> {
+  async getSubtaskCounts(
+    taskIds: string[],
+  ): Promise<Record<string, { total: number; completed: number }>> {
     if (!taskIds.length) return {};
     const rows = await this.subtaskRepository
       .createQueryBuilder('s')
       .select('s.taskId', 'taskId')
       .addSelect('COUNT(*)', 'total')
-      .addSelect('SUM(CASE WHEN s.completed = true THEN 1 ELSE 0 END)', 'completed')
+      .addSelect(
+        'SUM(CASE WHEN s.completed = true THEN 1 ELSE 0 END)',
+        'completed',
+      )
       .where('s.taskId IN (:...taskIds)', { taskIds })
       .groupBy('s.taskId')
       .getRawMany();
     return Object.fromEntries(
-      rows.map((r) => [r.taskId, { total: parseInt(r.total, 10), completed: parseInt(r.completed, 10) }]),
+      rows.map((r) => [
+        r.taskId,
+        { total: parseInt(r.total, 10), completed: parseInt(r.completed, 10) },
+      ]),
     );
   }
 
@@ -71,7 +96,11 @@ export class TasksService {
     return await this.subtaskRepository.save(subtask);
   }
 
-  async updateSubtask(subtaskId: string, taskId: string, updates: Partial<SubtaskEntity>): Promise<SubtaskEntity | null> {
+  async updateSubtask(
+    subtaskId: string,
+    taskId: string,
+    updates: Partial<SubtaskEntity>,
+  ): Promise<SubtaskEntity | null> {
     await this.subtaskRepository.update({ id: subtaskId, taskId }, updates);
     return await this.subtaskRepository.findOneBy({ id: subtaskId });
   }
@@ -80,7 +109,11 @@ export class TasksService {
     await this.subtaskRepository.delete({ id: subtaskId, taskId });
   }
 
-  async setStatus(id: string, userId: string, status: TaskStatus): Promise<void> {
+  async setStatus(
+    id: string,
+    userId: string,
+    status: TaskStatus,
+  ): Promise<void> {
     await this.taskRepository.update({ id, userId }, { status });
   }
 }
