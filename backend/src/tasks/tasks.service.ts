@@ -144,7 +144,6 @@ export class TasksService {
       relations: ['repeatTask'],
     });
     if (!oldTask) return null;
-    console.log(updates.repeatTask);
 
     if (oldTask.repeatTask && updates.repeatTask) {
       // update the existing repeat task template's schedule fields
@@ -163,14 +162,15 @@ export class TasksService {
           ),
         },
       );
+      updates.repeatTask = oldTask.repeatTask;
     } else if (oldTask.repeatTask && !updates.repeatTask) {
-      console.log('deleting repeat task');
       // if the oldTask has repeat enabled and the updates have repeat disabled,
       // delete the repeatTask
       const repeatTaskId = oldTask.repeatTask.id;
       oldTask.repeatTask = null;
       await this.taskRepository.save(oldTask);
       await this.repeatTaskRepository.delete(repeatTaskId);
+      updates.repeatTask = undefined;
     } else if (!oldTask.repeatTask && updates.repeatTask) {
       // if the oldTask doesn't have repeat enabled and the updates have repeat enabled,
       // create a new repeatTask
@@ -198,8 +198,7 @@ export class TasksService {
       updates.repeatTask = savedRepeatTask;
     }
 
-    const { repeatTask, ...taskUpdates } = updates;
-    await this.taskRepository.update({ id, userId }, taskUpdates);
+    await this.taskRepository.update({ id, userId }, updates);
     return await this.taskRepository.findOne({
       where: { id },
       relations: ['repeatTask'],
