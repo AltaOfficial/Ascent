@@ -13,6 +13,7 @@ export type Task = {
   status: Status;
   priority: Priority | null;
   projectId: string | null;
+  sectionId: string | null;
   categoryTag: string | null;
   dueDate: string | null;
   estimatedMinutes: number | null;
@@ -21,11 +22,14 @@ export type Task = {
   isRevenueImpact: boolean;
   subtaskCount?: number;
   subtaskCompletedCount?: number;
+  repeatTask?: {
+    repeatFrequency?: "daily" | "weekly" | "custom" | null;
+    repeatDays?: number[] | null;
+    repeatInterval?: number | null;
+  } | null;
 };
 
-export function formatDueDate(
-  dateStr: string | null,
-): {
+export function formatDueDate(dateStr: string | null): {
   label: string;
   urgency: "overdue" | "today" | "tomorrow" | "week" | "future";
 } | null {
@@ -138,7 +142,11 @@ export function TaskRow({
         {(task.subtaskCount ?? 0) > 0 && (
           <span
             className="text-[11px] shrink-0 flex items-center gap-0.5"
-            style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.6 }}
+            style={{
+              color: "var(--text-secondary)",
+              fontFamily: "var(--font-mono)",
+              opacity: 0.6,
+            }}
           >
             ◻ {task.subtaskCompletedCount ?? 0}/{task.subtaskCount}
           </span>

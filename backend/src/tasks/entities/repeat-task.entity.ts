@@ -1,13 +1,11 @@
 import {
-  Entity,
-  Column,
   PrimaryGeneratedColumn,
+  Column,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
+  Entity,
+  Timestamp,
 } from 'typeorm';
-import { RepeatTaskEntity } from './repeat-task.entity';
 
 export enum TaskStatus {
   TODO = 'todo',
@@ -22,8 +20,14 @@ export enum TaskPriority {
   HIGH = 'high',
 }
 
-@Entity({ name: 'tasks' })
-export class TaskEntity {
+export enum RepeatFrequency {
+  DAILY = 'daily',
+  WEEKLY = 'weekly',
+  CUSTOM = 'custom',
+}
+
+@Entity({ name: 'repeat_tasks' })
+export class RepeatTaskEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -42,6 +46,7 @@ export class TaskEntity {
   @Column({ nullable: true })
   projectId: string;
 
+  // edge case: if section is deleted, and task tries to be repeated, it will error out
   @Column({ nullable: true })
   sectionId: string;
 
@@ -51,12 +56,21 @@ export class TaskEntity {
   @Column({ nullable: true })
   categoryTag: string;
 
-  @ManyToOne(() => RepeatTaskEntity, { nullable: true })
-  @JoinColumn({ name: 'repeatTaskId' })
-  repeatTask: RepeatTaskEntity | null;
+  @Column({
+    nullable: true,
+    type: 'enum',
+    enum: RepeatFrequency,
+  })
+  repeatFrequency: RepeatFrequency;
+
+  @Column({ nullable: true, type: 'int', array: true })
+  repeatDays: number[];
+
+  @Column({ nullable: true })
+  repeatInterval: number;
 
   @Column({ nullable: true, type: 'timestamp' })
-  dueDate: Date;
+  nextOccurrence: Date;
 
   @Column({ nullable: true })
   estimatedMinutes: number;

@@ -3,31 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import React from "react";
 import { apiFetch } from "@/lib/api";
+import { type Task } from "@/components/dashboard/TaskRow";
 
 type Status = "todo" | "in_progress" | "blocked" | "done";
 type Priority = "low" | "medium" | "high";
-
 type RepeatFrequency = "daily" | "weekly" | "custom";
-
-type Task = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: Status;
-  priority: Priority | null;
-  projectId: string | null;
-  categoryTag: string | null;
-  dueDate: string | null;
-  estimatedMinutes: number | null;
-  actualMinutes?: number | null;
-  isHighValue: boolean;
-  isRevenueImpact: boolean;
-  subtaskCount?: number;
-  repeatEnabled?: boolean;
-  repeatFrequency?: RepeatFrequency | null;
-  repeatDays?: number[] | null;
-  repeatInterval?: number | null;
-};
 
 type Subtask = {
   id: string;
@@ -78,7 +58,11 @@ export function TaskModal({
   onClose: () => void;
   onSave: (id: string, updates: Partial<Task>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onSubtaskCountChange?: (taskId: string, total: number, completed: number) => void;
+  onSubtaskCountChange?: (
+    taskId: string,
+    total: number,
+    completed: number,
+  ) => void;
   projectTags?: ProjectTag[];
 }) {
   const { open, task } = state;
@@ -98,24 +82,28 @@ export function TaskModal({
   const subtaskInputRef = useRef<HTMLInputElement>(null);
   const mouseDownOnBackdrop = useRef(false);
 
+  const [sectionId, setSectionId] = useState<string | null>(null);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
-  const [repeatFrequency, setRepeatFrequency] = useState<RepeatFrequency>("daily");
+  const [repeatFrequency, setRepeatFrequency] =
+    useState<RepeatFrequency>("daily");
   const [repeatDays, setRepeatDays] = useState<number[]>([]);
   const [repeatInterval, setRepeatInterval] = useState(2);
 
   useEffect(() => {
     if (task) {
+      console.log(task);
       setTitle(task.title);
       setStatus(task.status);
       setPriority(task.priority ?? "low");
       setCategoryTag(task.categoryTag ?? "");
+      setSectionId(task.sectionId ?? null);
       setDueDate(task.dueDate ? task.dueDate.slice(0, 10) : "");
       setEstimatedRaw(formatEstimatedMinutes(task.estimatedMinutes));
       setNotes(task.description ?? "");
-      setRepeatEnabled(task.repeatEnabled ?? false);
-      setRepeatFrequency(task.repeatFrequency ?? "daily");
-      setRepeatDays(task.repeatDays ?? []);
-      setRepeatInterval(task.repeatInterval ?? 2);
+      setRepeatEnabled(task.repeatTask ? true : false);
+      setRepeatFrequency(task.repeatTask?.repeatFrequency ?? "daily");
+      setRepeatDays(task.repeatTask?.repeatDays ?? []);
+      setRepeatInterval(task.repeatTask?.repeatInterval ?? 2);
       setSubtasks([]);
       setNewSubtaskTitle("");
       setAddingSubtask(false);
@@ -140,13 +128,17 @@ export function TaskModal({
       status,
       priority,
       categoryTag: categoryTag || null,
+      sectionId: sectionId || null,
       dueDate: dueDate || null,
       estimatedMinutes: parseEstimatedInput(estimatedRaw),
       description: notes || null,
-      repeatEnabled,
-      repeatFrequency: repeatEnabled ? repeatFrequency : null,
-      repeatDays: repeatEnabled && repeatFrequency === "weekly" ? repeatDays : null,
-      repeatInterval: repeatEnabled && repeatFrequency === "custom" ? repeatInterval : null,
+      repeatTask: repeatEnabled
+        ? {
+            repeatFrequency: repeatFrequency || null,
+            repeatDays: repeatFrequency === "weekly" ? repeatDays : null,
+            repeatInterval: repeatFrequency === "custom" ? repeatInterval : null,
+          }
+        : null,
     });
     setSaving(false);
     onClose();
@@ -171,7 +163,11 @@ export function TaskModal({
       });
       const next = [...subtasks, created];
       setSubtasks(next);
-      onSubtaskCountChange?.(task.id, next.length, next.filter((s) => s.completed).length);
+      onSubtaskCountChange?.(
+        task.id,
+        next.length,
+        next.filter((s) => s.completed).length,
+      );
     } catch {}
     setNewSubtaskTitle("");
     subtaskInputRef.current?.focus();
@@ -189,7 +185,11 @@ export function TaskModal({
       );
       const next = subtasks.map((s) => (s.id === subtask.id ? updated : s));
       setSubtasks(next);
-      onSubtaskCountChange?.(task.id, next.length, next.filter((s) => s.completed).length);
+      onSubtaskCountChange?.(
+        task.id,
+        next.length,
+        next.filter((s) => s.completed).length,
+      );
     } catch {}
   }
 
@@ -201,7 +201,11 @@ export function TaskModal({
       });
       const next = subtasks.filter((s) => s.id !== subtaskId);
       setSubtasks(next);
-      onSubtaskCountChange?.(task.id, next.length, next.filter((s) => s.completed).length);
+      onSubtaskCountChange?.(
+        task.id,
+        next.length,
+        next.filter((s) => s.completed).length,
+      );
     } catch {}
   }
 
@@ -214,9 +218,13 @@ export function TaskModal({
     fontFamily: "var(--font-mono)",
   };
 
-  const selectedTag = projectTags.find(t => t.name === categoryTag);
+  const selectedTag = projectTags.find((t) => t.name === categoryTag);
 
-  const metaFields: { label: string; labelSuffix?: React.ReactNode; element: React.ReactNode }[] = [
+  const metaFields: {
+    label: string;
+    labelSuffix?: React.ReactNode;
+    element: React.ReactNode;
+  }[] = [
     {
       label: "Status",
       element: (
@@ -262,8 +270,10 @@ export function TaskModal({
             onChange={(e) => setCategoryTag(e.target.value)}
           >
             <option value="">None</option>
-            {projectTags.map(tag => (
-              <option key={tag.id} value={tag.name}>{tag.name}</option>
+            {projectTags.map((tag) => (
+              <option key={tag.id} value={tag.name}>
+                {tag.name}
+              </option>
             ))}
           </select>
         </div>
@@ -298,23 +308,29 @@ export function TaskModal({
       element: (
         <div
           className="w-full rounded-md border px-2.5 py-1.5 text-[11px] flex items-center gap-1.5"
-          style={task?.actualMinutes ? {
-            background: "rgba(107,187,138,0.07)",
-            borderColor: "rgba(107,187,138,0.35)",
-            color: "rgba(107,187,138,0.95)",
-            fontFamily: "var(--font-mono)",
-          } : {
-            background: "var(--surface-2)",
-            borderColor: "var(--border)",
-            color: "var(--text-secondary)",
-            fontFamily: "var(--font-mono)",
-            opacity: 0.45,
-          }}
+          style={
+            task?.actualMinutes
+              ? {
+                  background: "rgba(107,187,138,0.07)",
+                  borderColor: "rgba(107,187,138,0.35)",
+                  color: "rgba(107,187,138,0.95)",
+                  fontFamily: "var(--font-mono)",
+                }
+              : {
+                  background: "var(--surface-2)",
+                  borderColor: "var(--border)",
+                  color: "var(--text-secondary)",
+                  fontFamily: "var(--font-mono)",
+                  opacity: 0.45,
+                }
+          }
         >
           {task?.actualMinutes && (
             <span style={{ fontSize: 10, opacity: 0.7 }}>●</span>
           )}
-          {task?.actualMinutes ? formatEstimatedMinutes(task.actualMinutes) : "—"}
+          {task?.actualMinutes
+            ? formatEstimatedMinutes(task.actualMinutes)
+            : "—"}
         </div>
       ),
     },
@@ -324,18 +340,29 @@ export function TaskModal({
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-5"
       style={{ background: "rgba(0,0,0,0.72)" }}
-      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
-      onClick={(e) => { if (e.target === e.currentTarget && mouseDownOnBackdrop.current) onClose(); }}
+      onMouseDown={(e) => {
+        mouseDownOnBackdrop.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownOnBackdrop.current)
+          onClose();
+      }}
     >
       <div
         className="w-full max-w-120 max-h-[90vh] overflow-y-auto rounded-xl border"
-        style={{ background: "var(--surface)", borderColor: "var(--border-mid)" }}
+        style={{
+          background: "var(--surface)",
+          borderColor: "var(--border-mid)",
+        }}
       >
         {/* Title */}
         <div className="flex items-start justify-between p-5 pb-0">
           <input
             className="flex-1 bg-transparent border-none outline-none text-base font-semibold tracking-[-0.01em]"
-            style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+            style={{
+              fontFamily: "var(--font-display)",
+              color: "var(--text-primary)",
+            }}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Task title"
@@ -344,15 +371,22 @@ export function TaskModal({
             onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-[5px] text-[18px] shrink-0 transition-colors"
             style={{ color: "var(--text-secondary)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "var(--text-primary)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "var(--text-secondary)")
+            }
           >
             ×
           </button>
         </div>
 
         {/* Meta fields */}
-        <div className="grid grid-cols-2 gap-2.5 p-5 border-b" style={{ borderColor: "var(--border)" }}>
+        <div
+          className="grid grid-cols-2 gap-2.5 p-5 border-b"
+          style={{ borderColor: "var(--border)" }}
+        >
           {metaFields.map(({ label, labelSuffix, element }) => (
             <div key={label}>
               <div className="flex items-center mb-1.5">
@@ -382,7 +416,11 @@ export function TaskModal({
               {subtasks.length > 0 && (
                 <span
                   className="text-[9px] tracking-[0.04em]"
-                  style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.6 }}
+                  style={{
+                    color: "var(--text-secondary)",
+                    fontFamily: "var(--font-mono)",
+                    opacity: 0.6,
+                  }}
                 >
                   {completedCount}/{subtasks.length}
                 </span>
@@ -394,9 +432,18 @@ export function TaskModal({
                 setTimeout(() => subtaskInputRef.current?.focus(), 0);
               }}
               className="text-[10px] transition-colors"
-              style={{ color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+              style={{
+                color: "var(--text-secondary)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = "var(--text-primary)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = "var(--text-secondary)")
+              }
             >
               + Add
             </button>
@@ -430,7 +477,13 @@ export function TaskModal({
                   }}
                 >
                   {subtask.completed && (
-                    <span style={{ fontSize: 8, color: "rgba(107,187,138,0.9)", lineHeight: 1 }}>
+                    <span
+                      style={{
+                        fontSize: 8,
+                        color: "rgba(107,187,138,0.9)",
+                        lineHeight: 1,
+                      }}
+                    >
                       ✓
                     </span>
                   )}
@@ -438,7 +491,9 @@ export function TaskModal({
                 <span
                   className="flex-1 text-[12px] tracking-[0.01em]"
                   style={{
-                    color: subtask.completed ? "var(--text-secondary)" : "var(--text-primary)",
+                    color: subtask.completed
+                      ? "var(--text-secondary)"
+                      : "var(--text-primary)",
                     textDecoration: subtask.completed ? "line-through" : "none",
                     opacity: subtask.completed ? 0.55 : 1,
                   }}
@@ -448,9 +503,18 @@ export function TaskModal({
                 <button
                   onClick={() => handleDeleteSubtask(subtask.id)}
                   className="opacity-0 group-hover/subtask:opacity-100 text-[13px] leading-none transition-opacity"
-                  style={{ color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(217,107,107,0.8)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+                  style={{
+                    color: "var(--text-secondary)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "rgba(217,107,107,0.8)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "var(--text-secondary)")
+                  }
                 >
                   ×
                 </button>
@@ -498,14 +562,19 @@ export function TaskModal({
         {/* Repeat */}
         <div className="p-5 border-b" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center justify-between">
-            <span className="text-[9px] tracking-[0.08em] uppercase" style={{ color: "var(--text-secondary)" }}>
+            <span
+              className="text-[9px] tracking-[0.08em] uppercase"
+              style={{ color: "var(--text-secondary)" }}
+            >
               Repeat
             </span>
             <button
               onClick={() => setRepeatEnabled((v) => !v)}
               className="relative w-8 h-4 rounded-full transition-colors duration-200 shrink-0"
               style={{
-                background: repeatEnabled ? "var(--border-mid)" : "var(--border-mid)",
+                background: repeatEnabled
+                  ? "var(--border-mid)"
+                  : "var(--border-mid)",
                 opacity: repeatEnabled ? 1 : 0.5,
               }}
             >
@@ -526,29 +595,31 @@ export function TaskModal({
             <div className="mt-3 flex flex-col gap-3">
               {/* Frequency pills */}
               <div className="flex gap-1.5">
-                {(["daily", "weekly", "custom"] as RepeatFrequency[]).map((freq) => (
-                  <button
-                    key={freq}
-                    onClick={() => setRepeatFrequency(freq)}
-                    className="px-3 py-1 rounded-full text-[10px] tracking-[0.05em] capitalize transition-all duration-150"
-                    style={
-                      repeatFrequency === freq
-                        ? {
-                            background: "var(--text-primary)",
-                            color: "var(--bg)",
-                            fontFamily: "var(--font-mono)",
-                          }
-                        : {
-                            background: "var(--surface-2)",
-                            color: "var(--text-secondary)",
-                            border: "1px solid var(--border)",
-                            fontFamily: "var(--font-mono)",
-                          }
-                    }
-                  >
-                    {freq}
-                  </button>
-                ))}
+                {(["daily", "weekly", "custom"] as RepeatFrequency[]).map(
+                  (freq) => (
+                    <button
+                      key={freq}
+                      onClick={() => setRepeatFrequency(freq)}
+                      className="px-3 py-1 rounded-full text-[10px] tracking-[0.05em] capitalize transition-all duration-150"
+                      style={
+                        repeatFrequency === freq
+                          ? {
+                              background: "var(--text-primary)",
+                              color: "var(--bg)",
+                              fontFamily: "var(--font-mono)",
+                            }
+                          : {
+                              background: "var(--surface-2)",
+                              color: "var(--text-secondary)",
+                              border: "1px solid var(--border)",
+                              fontFamily: "var(--font-mono)",
+                            }
+                      }
+                    >
+                      {freq}
+                    </button>
+                  ),
+                )}
               </div>
 
               {/* Weekly day picker */}
@@ -561,7 +632,9 @@ export function TaskModal({
                         key={i}
                         onClick={() =>
                           setRepeatDays((prev) =>
-                            prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i],
+                            prev.includes(i)
+                              ? prev.filter((d) => d !== i)
+                              : [...prev, i],
                           )
                         }
                         className="w-7 h-7 rounded-full text-[10px] font-medium transition-all duration-150"
@@ -592,7 +665,13 @@ export function TaskModal({
               {/* Custom interval */}
               {repeatFrequency === "custom" && (
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px]" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  <span
+                    className="text-[11px]"
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
                     Every
                   </span>
                   <input
@@ -600,7 +679,11 @@ export function TaskModal({
                     min={1}
                     max={365}
                     value={repeatInterval}
-                    onChange={(e) => setRepeatInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) =>
+                      setRepeatInterval(
+                        Math.max(1, parseInt(e.target.value) || 1),
+                      )
+                    }
                     className="w-14 rounded-md border px-2 py-1 text-[11px] text-center outline-none"
                     style={{
                       background: "var(--surface-2)",
@@ -609,7 +692,13 @@ export function TaskModal({
                       fontFamily: "var(--font-mono)",
                     }}
                   />
-                  <span className="text-[11px]" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  <span
+                    className="text-[11px]"
+                    style={{
+                      color: "var(--text-secondary)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
                     days
                   </span>
                 </div>
@@ -630,7 +719,8 @@ export function TaskModal({
                   (repeatDays.length === 0
                     ? "Pick days above"
                     : `Repeats every ${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].filter((_, i) => repeatDays.includes(i)).join(", ")}`)}
-                {repeatFrequency === "custom" && `Repeats every ${repeatInterval} day${repeatInterval === 1 ? "" : "s"}`}
+                {repeatFrequency === "custom" &&
+                  `Repeats every ${repeatInterval} day${repeatInterval === 1 ? "" : "s"}`}
               </div>
             </div>
           )}
@@ -638,12 +728,20 @@ export function TaskModal({
 
         {/* Notes */}
         <div className="p-5">
-          <div className="text-[9px] tracking-[0.08em] uppercase mb-2" style={{ color: "var(--text-secondary)" }}>
+          <div
+            className="text-[9px] tracking-[0.08em] uppercase mb-2"
+            style={{ color: "var(--text-secondary)" }}
+          >
             Notes
           </div>
           <textarea
             className="w-full rounded-lg border px-3 py-2.5 text-[12px] outline-none resize-y min-h-20 leading-relaxed"
-            style={{ background: "var(--surface-2)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
+            style={{
+              background: "var(--surface-2)",
+              borderColor: "var(--border)",
+              color: "var(--text-primary)",
+              fontFamily: "var(--font-mono)",
+            }}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Add notes, context, links..."
@@ -659,8 +757,12 @@ export function TaskModal({
             onClick={handleDelete}
             className="text-[11px] tracking-[0.03em] transition-colors"
             style={{ color: "rgba(217,107,107,0.6)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(217,107,107,0.9)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(217,107,107,0.6)")}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "rgba(217,107,107,0.9)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "rgba(217,107,107,0.6)")
+            }
           >
             Delete task
           </button>
@@ -668,7 +770,11 @@ export function TaskModal({
             onClick={handleSave}
             disabled={saving}
             className="text-[11px] font-medium px-5 py-1.5 rounded-lg transition-opacity disabled:opacity-50"
-            style={{ background: "var(--text-primary)", color: "var(--bg)", fontFamily: "var(--font-mono)" }}
+            style={{
+              background: "var(--text-primary)",
+              color: "var(--bg)",
+              fontFamily: "var(--font-mono)",
+            }}
           >
             {saving ? "Saving…" : "Save"}
           </button>

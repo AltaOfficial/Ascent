@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { differenceInCalendarDays, format, isToday, isTomorrow, parse, startOfDay } from "date-fns";
+import {
+  differenceInCalendarDays,
+  format,
+  isToday,
+  isTomorrow,
+  parse,
+  startOfDay,
+} from "date-fns";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -148,19 +155,26 @@ export default function KanbanPage() {
         setProjectTags(tags);
         const ids = taskList.map((t) => t.id);
         let totals: Record<string, number> = {};
-        let subtaskCounts: Record<string, { total: number; completed: number }> = {};
+        let subtaskCounts: Record<
+          string,
+          { total: number; completed: number }
+        > = {};
         if (ids.length) {
           [totals, subtaskCounts] = await Promise.all([
             apiFetch<Record<string, number>>("/time-entries/totals", {
               method: "POST",
               body: JSON.stringify({ taskIds: ids }),
             }).catch(() => ({})),
-            apiFetch<Record<string, { total: number; completed: number }>>("/tasks/subtask-counts", {
-              method: "POST",
-              body: JSON.stringify({ taskIds: ids }),
-            }).catch(() => ({})),
+            apiFetch<Record<string, { total: number; completed: number }>>(
+              "/tasks/subtask-counts",
+              {
+                method: "POST",
+                body: JSON.stringify({ taskIds: ids }),
+              },
+            ).catch(() => ({})),
           ]);
         }
+        console.log(taskList);
         setTasks(
           taskList.map((t) => ({
             ...t,
@@ -206,7 +220,17 @@ export default function KanbanPage() {
         method: "POST",
         body: JSON.stringify({ sectionId: toSectionId }),
       });
-      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...updated, subtaskCount: t.subtaskCount, subtaskCompletedCount: t.subtaskCompletedCount } : t));
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? {
+                ...updated,
+                subtaskCount: t.subtaskCount,
+                subtaskCompletedCount: t.subtaskCompletedCount,
+              }
+            : t,
+        ),
+      );
     } catch {}
   }
 
@@ -216,7 +240,17 @@ export default function KanbanPage() {
         method: "POST",
         body: JSON.stringify(updates),
       });
-      setTasks((prev) => prev.map((t) => t.id === id ? { ...updated, subtaskCount: t.subtaskCount, subtaskCompletedCount: t.subtaskCompletedCount } : t));
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === id
+            ? {
+                ...updated,
+                subtaskCount: task.subtaskCount,
+                subtaskCompletedCount: task.subtaskCompletedCount,
+              }
+            : task,
+        ),
+      );
     } catch {}
   }
 
@@ -236,7 +270,17 @@ export default function KanbanPage() {
         method: "POST",
         body: JSON.stringify({ status: newStatus }),
       });
-      setTasks((prev) => prev.map((t) => t.id === taskId ? { ...updated, subtaskCount: t.subtaskCount, subtaskCompletedCount: t.subtaskCompletedCount } : t));
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? {
+                ...updated,
+                subtaskCount: t.subtaskCount,
+                subtaskCompletedCount: t.subtaskCompletedCount,
+              }
+            : t,
+        ),
+      );
     } catch {}
   }
 
@@ -579,9 +623,7 @@ export default function KanbanPage() {
         )}
 
         {sections.map((section) => {
-          const colTasks = tasks.filter(
-            (t) => (t as any).sectionId === section.id,
-          );
+          const colTasks = tasks.filter((t) => t.sectionId === section.id);
           const isRenaming = renamingSectionId === section.id;
           const isDropTarget =
             drag !== null &&
@@ -814,7 +856,10 @@ export default function KanbanPage() {
                             {task.description && (
                               <span
                                 className="text-[15px] leading-none"
-                                style={{ color: "var(--text-secondary)", opacity: 0.45 }}
+                                style={{
+                                  color: "var(--text-secondary)",
+                                  opacity: 0.45,
+                                }}
                               >
                                 ≡
                               </span>
@@ -822,7 +867,11 @@ export default function KanbanPage() {
                             {fmtMinutes(task.estimatedMinutes) && (
                               <span
                                 className="text-[11px] flex items-center gap-1"
-                                style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.55 }}
+                                style={{
+                                  color: "var(--text-secondary)",
+                                  fontFamily: "var(--font-mono)",
+                                  opacity: 0.55,
+                                }}
                               >
                                 ⏱ {fmtMinutes(task.estimatedMinutes)}
                               </span>
@@ -830,9 +879,14 @@ export default function KanbanPage() {
                             {(task.subtaskCount ?? 0) > 0 && (
                               <span
                                 className="text-[11px] flex items-center gap-1"
-                                style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", opacity: 0.6 }}
+                                style={{
+                                  color: "var(--text-secondary)",
+                                  fontFamily: "var(--font-mono)",
+                                  opacity: 0.6,
+                                }}
                               >
-                                ◻ {task.subtaskCompletedCount ?? 0}/{task.subtaskCount}
+                                ◻ {task.subtaskCompletedCount ?? 0}/
+                                {task.subtaskCount}
                               </span>
                             )}
                           </div>
@@ -1040,7 +1094,15 @@ export default function KanbanPage() {
         onDelete={handleDeleteTask}
         onSubtaskCountChange={(taskId, total, completed) =>
           setTasks((prev) =>
-            prev.map((t) => (t.id === taskId ? { ...t, subtaskCount: total, subtaskCompletedCount: completed } : t)),
+            prev.map((t) =>
+              t.id === taskId
+                ? {
+                    ...t,
+                    subtaskCount: total,
+                    subtaskCompletedCount: completed,
+                  }
+                : t,
+            ),
           )
         }
         projectTags={projectTags}

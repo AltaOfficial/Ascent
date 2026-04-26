@@ -5,24 +5,13 @@ import { UsersModule } from './users/users.module';
 import { MailerModule } from './mailer/mailer.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { UserEntity } from './users/entities/user.entity';
 import { InvitesModule } from './invites/invites.module';
-import { InviteEntity } from './invites/entities/invite.entity';
 import { AuthModule } from './auth/auth.module';
 import { ProjectsModule } from './projects/projects.module';
-import { ProjectEntity } from './projects/entities/project.entity';
-import { ProjectSectionEntity } from './projects/entities/project-section.entity';
 import { TasksModule } from './tasks/tasks.module';
-import { TaskEntity } from './tasks/entities/task.entity';
-import { TaskTagEntity } from './projects/entities/task-tag.entity';
-import { SubtaskEntity } from './tasks/entities/subtask.entity';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
-import { TimeEntryEntity } from './time-entries/entities/time-entry.entity';
 import { ComplianceModule } from './compliance/compliance.module';
-import { ComplianceRuleEntity } from './compliance/entities/compliance-rule.entity';
-import { ComplianceEntryEntity } from './compliance/entities/compliance-entry.entity';
 import { CalendarEventsModule } from './calendar-events/calendar-events.module';
-import { CalendarEventEntity } from './calendar-events/entities/calendar-event.entity';
 import { RankingModule } from './ranking/ranking.module';
 
 @Module({
@@ -35,21 +24,9 @@ import { RankingModule } from './ranking/ranking.module';
       username: process.env.DB_USER as any,
       password: process.env.DB_PASS as any,
       database: process.env.DB_NAME as any,
-      entities: [
-        UserEntity,
-        InviteEntity,
-        ProjectEntity,
-        ProjectSectionEntity,
-        TaskEntity,
-        TaskTagEntity,
-        SubtaskEntity,
-        TimeEntryEntity,
-        ComplianceRuleEntity,
-        ComplianceEntryEntity,
-        CalendarEventEntity,
-      ],
       ssl: process.env.DB_SSL as any,
       synchronize: true, // dont use in production
+      autoLoadEntities: true,
     }),
     RankingModule,
     MailerModule,

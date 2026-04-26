@@ -1,7 +1,18 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request, HttpCode, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  HttpCode,
+  Req,
+} from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TaskEntity } from './entities/task.entity';
+import { RepeatTaskEntity } from './entities/repeat-task.entity';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -13,9 +24,12 @@ export class TasksController {
     return this.tasksService.findAllByUserId(req.user.userId);
   }
 
-  @Post("ids")
-  async getTasksWithId(@Request() req, @Body() body: { taskIds: [string]}) {
-    return await this.tasksService.findAllByTaskIdsAndUserId(req.user.userId, body.taskIds);
+  @Post('ids')
+  async getTasksWithId(@Request() req, @Body() body: { taskIds: [string] }) {
+    return await this.tasksService.findAllByTaskIdsAndUserId(
+      req.user.userId,
+      body.taskIds,
+    );
   }
 
   @Post('list')
@@ -23,7 +37,11 @@ export class TasksController {
     @Request() req,
     @Body() body: { projectId?: string | null; status?: string },
   ) {
-    return this.tasksService.findByFilter(req.user.userId, body.projectId, body.status);
+    return this.tasksService.findByFilter(
+      req.user.userId,
+      body.projectId,
+      body.status,
+    );
   }
 
   @Post()
@@ -40,7 +58,8 @@ export class TasksController {
   async updateTask(
     @Request() req,
     @Param('id') id: string,
-    @Body() body: Partial<TaskEntity>,
+    @Body()
+    body: Partial<TaskEntity> & { repeatTask?: Partial<RepeatTaskEntity> },
   ) {
     return this.tasksService.update(id, req.user.userId, body);
   }
@@ -56,7 +75,10 @@ export class TasksController {
   }
 
   @Post(':id/subtasks')
-  async createSubtask(@Param('id') taskId: string, @Body() body: { title: string }) {
+  async createSubtask(
+    @Param('id') taskId: string,
+    @Body() body: { title: string },
+  ) {
     return this.tasksService.createSubtask(taskId, body.title);
   }
 
@@ -70,7 +92,10 @@ export class TasksController {
   }
 
   @Post(':id/subtasks/:subtaskId/delete')
-  async deleteSubtask(@Param('id') taskId: string, @Param('subtaskId') subtaskId: string) {
+  async deleteSubtask(
+    @Param('id') taskId: string,
+    @Param('subtaskId') subtaskId: string,
+  ) {
     await this.tasksService.deleteSubtask(subtaskId, taskId);
   }
 }
