@@ -13,10 +13,12 @@ import { TimeEntriesModule } from './time-entries/time-entries.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { CalendarEventsModule } from './calendar-events/calendar-events.module';
 import { RankingModule } from './ranking/ranking.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: process.env.DB_TYPE as any,
       host: process.env.DB_HOST as any,
