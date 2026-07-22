@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { format, startOfWeek, addDays, subDays, parseISO } from "date-fns";
 import { apiFetch } from "@/lib/api";
+import UrgeLogTable from "@/components/dashboard/UrgeLogTable";
 
 const WEEK_DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -492,6 +493,11 @@ export default function CompliancePage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Urge Log — full width, not constrained to the max-w-185 column above */}
+      <div className="px-8 pb-13">
+        <UrgeLogTable />
       </div>
     </div>
   );

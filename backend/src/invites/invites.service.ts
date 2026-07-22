@@ -30,7 +30,9 @@ export class InvitesService {
 
   async inviteExists(inviteCode: string): Promise<boolean> {
     const inviteCodeReformatted = inviteCode.replace(/-/g, '');
-    const invite = await this.inviteRepository.findOneBy({ inviteCode: inviteCodeReformatted });
+    const invite = await this.inviteRepository.findOneBy({
+      inviteCode: inviteCodeReformatted,
+    });
     return !!invite;
   }
 

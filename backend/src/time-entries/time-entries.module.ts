@@ -6,7 +6,10 @@ import { TimeEntriesController } from './time-entries.controller';
 import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([TimeEntryEntity]), forwardRef(() => TasksModule)],
+  imports: [
+    TypeOrmModule.forFeature([TimeEntryEntity]),
+    forwardRef(() => TasksModule),
+  ],
   controllers: [TimeEntriesController],
   providers: [TimeEntriesService],
   exports: [TimeEntriesService],

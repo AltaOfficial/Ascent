@@ -7,7 +7,13 @@ import { ProjectsController } from './projects.controller';
 import { TaskTagEntity } from './entities/task-tag.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProjectEntity, ProjectSectionEntity, TaskTagEntity])],
+  imports: [
+    TypeOrmModule.forFeature([
+      ProjectEntity,
+      ProjectSectionEntity,
+      TaskTagEntity,
+    ]),
+  ],
   controllers: [ProjectsController],
   providers: [ProjectsService],
   exports: [ProjectsService],

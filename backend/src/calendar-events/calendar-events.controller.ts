@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { CalendarEventsService } from './calendar-events.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CalendarEventEntity } from './entities/calendar-event.entity';
@@ -19,7 +27,11 @@ export class CalendarEventsController {
   }
 
   @Post(':id/update')
-  async update(@Request() req, @Param('id') id: string, @Body() body: Partial<CalendarEventEntity>) {
+  async update(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: Partial<CalendarEventEntity>,
+  ) {
     return this.service.update(id, req.user.userId, body);
   }
 

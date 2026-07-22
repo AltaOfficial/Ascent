@@ -17,7 +17,10 @@ export class ProjectsService {
   ) {}
 
   async findAllByUserId(userId: string): Promise<ProjectEntity[]> {
-    return await this.projectRepository.find({ where: { userId }, order: { createdAt: 'ASC' } });
+    return await this.projectRepository.find({
+      where: { userId },
+      order: { createdAt: 'ASC' },
+    });
   }
 
   async findById(id: string, userId: string): Promise<ProjectEntity | null> {
@@ -54,7 +57,10 @@ export class ProjectsService {
 
   // Sections
 
-  async getSections(projectId: string, userId: string): Promise<ProjectSectionEntity[]> {
+  async getSections(
+    projectId: string,
+    userId: string,
+  ): Promise<ProjectSectionEntity[]> {
     return await this.sectionRepository.findBy({ projectId, userId });
   }
 
@@ -64,7 +70,12 @@ export class ProjectsService {
     name: string,
     order: number,
   ): Promise<ProjectSectionEntity> {
-    const section = this.sectionRepository.create({ projectId, userId, name, order });
+    const section = this.sectionRepository.create({
+      projectId,
+      userId,
+      name,
+      order,
+    });
     return await this.sectionRepository.save(section);
   }
 
@@ -87,7 +98,12 @@ export class ProjectsService {
     return await this.tagRepository.findBy({ projectId, userId });
   }
 
-  async createTag(projectId: string, userId: string, name: string, color: string): Promise<TaskTagEntity> {
+  async createTag(
+    projectId: string,
+    userId: string,
+    name: string,
+    color: string,
+  ): Promise<TaskTagEntity> {
     const tag = this.tagRepository.create({ projectId, userId, name, color });
     return await this.tagRepository.save(tag);
   }

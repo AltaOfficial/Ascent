@@ -14,12 +14,19 @@ export class CalendarEventsService {
     return this.repo.findBy({ userId });
   }
 
-  async create(userId: string, data: Partial<CalendarEventEntity>): Promise<CalendarEventEntity> {
+  async create(
+    userId: string,
+    data: Partial<CalendarEventEntity>,
+  ): Promise<CalendarEventEntity> {
     const event = this.repo.create({ ...data, userId });
     return this.repo.save(event);
   }
 
-  async update(id: string, userId: string, data: Partial<CalendarEventEntity>): Promise<CalendarEventEntity | null> {
+  async update(
+    id: string,
+    userId: string,
+    data: Partial<CalendarEventEntity>,
+  ): Promise<CalendarEventEntity | null> {
     await this.repo.update({ id, userId }, data);
     return this.repo.findOneBy({ id });
   }

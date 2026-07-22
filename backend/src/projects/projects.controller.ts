@@ -106,7 +106,12 @@ export class ProjectsController {
     @Param('id') projectId: string,
     @Body() body: { name: string; color: string },
   ) {
-    return this.projectsService.createTag(projectId, req.user.userId, body.name, body.color ?? '#6b7280');
+    return this.projectsService.createTag(
+      projectId,
+      req.user.userId,
+      body.name,
+      body.color ?? '#6b7280',
+    );
   }
 
   @Post(':id/tags/:tagId/update')

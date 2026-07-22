@@ -63,9 +63,7 @@ export class TimeEntriesService {
       .getMany();
   }
 
-  async findAllByUser(
-    userId: string,
-  ): Promise<
+  async findAllByUser(userId: string): Promise<
     {
       id: string;
       taskId: string;

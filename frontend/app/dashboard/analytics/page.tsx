@@ -12,6 +12,7 @@ import { DriftWatchCard, type DriftWeek } from "@/components/dashboard/DriftWatc
 import { HighValueCard, type HighValueEntry } from "@/components/dashboard/HighValueCard";
 import { SessionStatsCard, type SessionStats } from "@/components/dashboard/SessionStatsCard";
 import { EstimationAccuracyCard, type AccuracyEntry } from "@/components/dashboard/EstimationAccuracyCard";
+import UrgeAnalyticsCard from "@/components/dashboard/UrgeAnalyticsCard";
 
 export default function AnalyticsPage() {
   const [rawHours] = useState<number[]>([]);
@@ -59,6 +60,7 @@ export default function AnalyticsPage() {
         <div className="flex flex-col gap-3">
           <HeatmapCard last90={last90} />
           <ConsistencyCard last30={last90} />
+          <UrgeAnalyticsCard />
         </div>
       </section>
 
