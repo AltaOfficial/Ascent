@@ -20,6 +20,15 @@ export enum TaskPriority {
   HIGH = 'high',
 }
 
+export enum RepeatMode {
+  // One open copy at a time; a missed one gets its due date moved forward
+  CARRY_OVER = 'carry_over',
+  // A new copy every occurrence, even if earlier ones are still open
+  PILE_UP = 'pile_up',
+  // The next copy is created when the current one is completed
+  AFTER_COMPLETION = 'after_completion',
+}
+
 export enum RepeatFrequency {
   DAILY = 'daily',
   WEEKLY = 'weekly',
@@ -46,7 +55,8 @@ export class RepeatTaskEntity {
   @Column({ nullable: true })
   projectId: string;
 
-  // edge case: if section is deleted, and task tries to be repeated, it will error out
+  // If the section (or project) is gone by the time a copy is created, the copy
+  // falls back to the project's unsectioned list (or the inbox).
   @Column({ nullable: true })
   sectionId: string;
 
@@ -69,8 +79,11 @@ export class RepeatTaskEntity {
   @Column({ nullable: true })
   repeatInterval: number;
 
+  @Column({ type: 'enum', enum: RepeatMode, default: RepeatMode.CARRY_OVER })
+  repeatMode: RepeatMode;
+
   @Column({ nullable: true, type: 'timestamp' })
-  nextOccurrence: Date;
+  nextOccurrence: Date | null;
 
   @Column({ nullable: true })
   estimatedMinutes: number;

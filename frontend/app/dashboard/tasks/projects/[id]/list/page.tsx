@@ -12,6 +12,12 @@ import {
 } from "@/components/dashboard/TaskModal";
 import { TimerBar } from "@/components/dashboard/TimerBar";
 import { type Task } from "@/components/dashboard/TaskRow";
+import {
+  MilestoneStrip,
+  type Milestone,
+} from "@/components/dashboard/MilestoneStrip";
+import { Flag } from "lucide-react";
+import { isUpperHalf, moveBefore, moveTask } from "@/lib/reorder";
 
 type Project = { id: string; name: string; color: string | null; viewType: string };
 type Section = { id: string; name: string; order: number; projectId: string };
@@ -105,6 +111,21 @@ export default function ListPage() {
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   const [managingTags, setManagingTags] = useState(false);
+
+  // Drag-and-drop: a task row, or a whole section
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    sectionId: string;
+    beforeTaskId: string | null;
+  } | null>(null);
+  const [sectionDrag, setSectionDrag] = useState<string | null>(null);
+  // Section the dragged section would land before (null = end, undefined = nowhere)
+  const [sectionDropBefore, setSectionDropBefore] = useState<
+    string | null | undefined
+  >(undefined);
+
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#6b7280");
 
@@ -140,8 +161,11 @@ export default function ListPage() {
         body: JSON.stringify({ projectId }),
       }),
       apiFetch<ProjectTag[]>(`/projects/${projectId}/tags`),
+      apiFetch<Milestone[]>(`/projects/${projectId}/milestones`).catch(
+        () => [] as Milestone[],
+      ),
     ])
-      .then(async ([proj, secs, taskList, tags]) => {
+      .then(async ([proj, secs, taskList, tags, milestoneList]) => {
         if (proj.viewType === "kanban") {
           router.replace(`/dashboard/tasks/projects/${projectId}`);
           return;
@@ -149,6 +173,7 @@ export default function ListPage() {
         setProject(proj);
         setSections(secs.sort((a, b) => a.order - b.order));
         setProjectTags(tags);
+        setMilestones(milestoneList);
         const ids = taskList.map((t) => t.id);
         let totals: Record<string, number> = {};
         let subtaskCounts: Record<string, { total: number; completed: number }> = {};
@@ -169,6 +194,57 @@ export default function ListPage() {
       .catch(() => {});
   }, [projectId]);
 
+  // Milestone progress depends on task status, so refresh after task changes.
+  function reloadMilestones() {
+    apiFetch<Milestone[]>(`/projects/${projectId}/milestones`)
+      .then(setMilestones)
+      .catch(() => {});
+  }
+
+  async function handleTaskDrop(sectionId: string) {
+    const taskId = dragTaskId;
+    const beforeTaskId =
+      dropTarget?.sectionId === sectionId ? dropTarget.beforeTaskId : null;
+    setDragTaskId(null);
+    setDropTarget(null);
+    if (!taskId) return;
+    const previous = tasks;
+    const { tasks: next, sectionTaskIds } = moveTask(
+      tasks,
+      taskId,
+      sectionId,
+      beforeTaskId,
+    );
+    setTasks(next);
+    try {
+      await apiFetch("/tasks/reorder", {
+        method: "POST",
+        body: JSON.stringify({ projectId, sectionId, taskIds: sectionTaskIds }),
+      });
+    } catch {
+      setTasks(previous);
+    }
+  }
+
+  async function handleSectionDrop() {
+    const moving = sectionDrag;
+    const before = sectionDropBefore;
+    setSectionDrag(null);
+    setSectionDropBefore(undefined);
+    if (!moving || before === undefined) return;
+    const previous = sections;
+    const next = moveBefore(sections, moving, before);
+    setSections(next);
+    try {
+      await apiFetch(`/projects/${projectId}/sections/reorder`, {
+        method: "POST",
+        body: JSON.stringify({ sectionIds: next.map((s) => s.id) }),
+      });
+    } catch {
+      setSections(previous);
+    }
+  }
+
   async function handleAddTask(sectionId: string) {
     if (!newTaskTitle.trim()) {
       setAddingIn(null);
@@ -181,9 +257,12 @@ export default function ListPage() {
           title: newTaskTitle.trim(),
           projectId,
           sectionId,
+          // Keep the new task visible while a milestone filter is active
+          ...(milestoneFilter ? { milestoneId: milestoneFilter } : {}),
         }),
       });
       setTasks((prev) => [...prev, created]);
+      if (milestoneFilter) reloadMilestones();
     } catch {}
     setNewTaskTitle("");
     setAddingIn(null);
@@ -196,6 +275,7 @@ export default function ListPage() {
         body: JSON.stringify(updates),
       });
       setTasks((prev) => prev.map((t) => t.id === id ? { ...updated, subtaskCount: t.subtaskCount, subtaskCompletedCount: t.subtaskCompletedCount } : t));
+      reloadMilestones();
     } catch {}
   }
 
@@ -203,6 +283,7 @@ export default function ListPage() {
     try {
       await apiFetch(`/tasks/${id}/delete`, { method: "POST" });
       setTasks((prev) => prev.filter((t) => t.id !== id));
+      reloadMilestones();
     } catch {}
   }
 
@@ -251,6 +332,7 @@ export default function ListPage() {
         body: JSON.stringify({ status: newStatus }),
       });
       setTasks((prev) => prev.map((t) => t.id === taskId ? { ...updated, subtaskCount: t.subtaskCount, subtaskCompletedCount: t.subtaskCompletedCount } : t));
+      if (task.milestoneId) reloadMilestones();
     } catch {}
   }
 
@@ -515,6 +597,15 @@ export default function ListPage() {
           scrollbarColor: "var(--border) transparent",
         }}
       >
+        <div className="pt-5">
+          <MilestoneStrip
+            projectId={projectId}
+            milestones={milestones}
+            onChange={setMilestones}
+            selectedId={milestoneFilter}
+            onSelect={setMilestoneFilter}
+          />
+        </div>
         {sections.length === 0 && !addingSection && (
           <div
             className="flex flex-col items-center justify-center gap-3 mt-16"
@@ -541,15 +632,71 @@ export default function ListPage() {
           </div>
         )}
 
-        {sections.map((sec) => {
-          const secTasks = tasks.filter((t) => (t as any).sectionId === sec.id);
+        {sections.map((sec, sectionIndex) => {
+          const secTasks = tasks.filter(
+            (t) =>
+              t.sectionId === sec.id &&
+              (!milestoneFilter || t.milestoneId === milestoneFilter),
+          );
           const isRenaming = renamingSectionId === sec.id;
+          const isTaskDropTarget =
+            dragTaskId !== null && dropTarget?.sectionId === sec.id;
+          const sectionDropHere =
+            sectionDrag !== null &&
+            sectionDrag !== sec.id &&
+            sectionDropBefore === sec.id;
           return (
-            <div key={sec.id} className="mt-10 first:mt-6">
-              {/* Section header */}
+            <div
+              key={sec.id}
+              className="mt-10 first:mt-6"
+              style={{
+                opacity: sectionDrag === sec.id ? 0.4 : 1,
+                boxShadow: sectionDropHere
+                  ? "0 -14px 0 -12px var(--text-mid)"
+                  : undefined,
+              }}
+              onDragOver={(e) => {
+                if (sectionDrag) {
+                  e.preventDefault();
+                  const before = isUpperHalf(e)
+                    ? sec.id
+                    : (sections[sectionIndex + 1]?.id ?? null);
+                  setSectionDropBefore(before);
+                  return;
+                }
+                if (!dragTaskId) return;
+                e.preventDefault();
+                if (
+                  dropTarget?.sectionId !== sec.id ||
+                  dropTarget.beforeTaskId !== null
+                ) {
+                  setDropTarget({ sectionId: sec.id, beforeTaskId: null });
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (sectionDrag) handleSectionDrop();
+                else handleTaskDrop(sec.id);
+              }}
+            >
+              {/* Section header: drag it to reorder sections */}
               <div
                 className="flex items-center gap-3.5 pb-2.5 border-b mb-0 group/secheader"
-                style={{ borderColor: "var(--border)" }}
+                style={{
+                  borderColor: "var(--border)",
+                  cursor: isRenaming ? undefined : "grab",
+                }}
+                draggable={!isRenaming}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", sec.id);
+                  setSectionDrag(sec.id);
+                }}
+                onDragEnd={() => {
+                  setSectionDrag(null);
+                  setSectionDropBefore(undefined);
+                }}
+                title="Drag to reorder sections"
               >
                 {isRenaming ? (
                   <input
@@ -608,19 +755,59 @@ export default function ListPage() {
               </div>
 
               {/* Tasks */}
-              {secTasks.map((task) => {
+              {secTasks.map((task, taskIndex) => {
                 const isRunning = activeEntry?.taskId === task.id;
                 const due = fmtDue(task.dueDate ?? null);
                 const tag = projectTags.find(
                   (t) => t.name === task.categoryTag,
                 );
+                const milestone = milestoneFilter
+                  ? null
+                  : milestones.find((m) => m.id === task.milestoneId);
+                const showDropLine =
+                  isTaskDropTarget &&
+                  dropTarget?.beforeTaskId === task.id &&
+                  dragTaskId !== task.id;
                 return (
                   <div
                     key={task.id}
                     className="flex items-start border-b min-h-11.5 cursor-pointer transition-colors group/row"
                     style={{
                       borderColor: "var(--border)",
-                      opacity: task.status === "done" ? 0.45 : 1,
+                      opacity:
+                        dragTaskId === task.id
+                          ? 0.25
+                          : task.status === "done"
+                            ? 0.45
+                            : 1,
+                      boxShadow: showDropLine
+                        ? "inset 0 2px 0 0 var(--text-mid)"
+                        : undefined,
+                    }}
+                    draggable
+                    onDragStart={(e) => {
+                      e.stopPropagation();
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", task.id);
+                      setDragTaskId(task.id);
+                    }}
+                    onDragEnd={() => {
+                      setDragTaskId(null);
+                      setDropTarget(null);
+                    }}
+                    onDragOver={(e) => {
+                      if (!dragTaskId) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const beforeTaskId = isUpperHalf(e)
+                        ? task.id
+                        : (secTasks[taskIndex + 1]?.id ?? null);
+                      if (
+                        dropTarget?.sectionId !== sec.id ||
+                        dropTarget.beforeTaskId !== beforeTaskId
+                      ) {
+                        setDropTarget({ sectionId: sec.id, beforeTaskId });
+                      }
                     }}
                     onClick={() => setModal({ open: true, task })}
                     onMouseEnter={(e) =>
@@ -742,6 +929,15 @@ export default function ListPage() {
                                 ◻ {task.subtaskCompletedCount ?? 0}/{task.subtaskCount}
                               </span>
                             )}
+                            {milestone && (
+                              <span
+                                className="flex items-center gap-1.5 text-[10px] tracking-[0.03em] max-w-48 min-w-0"
+                                style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}
+                              >
+                                <Flag size={10} className="shrink-0" aria-hidden />
+                                <span className="truncate">{milestone.name}</span>
+                              </span>
+                            )}
                           </div>
                           <div
                             className="opacity-0 group-hover/row:opacity-100 transition-opacity"
@@ -787,6 +983,13 @@ export default function ListPage() {
                   </div>
                 );
               })}
+
+              {isTaskDropTarget && dropTarget?.beforeTaskId === null && (
+                <div
+                  className="h-0.5 rounded-full"
+                  style={{ background: "var(--text-mid)" }}
+                />
+              )}
 
               {/* Inline add */}
               {addingIn === sec.id && (
@@ -963,6 +1166,7 @@ export default function ListPage() {
           )
         }
         projectTags={projectTags}
+        milestones={milestones}
       />
 
       <TimerBar

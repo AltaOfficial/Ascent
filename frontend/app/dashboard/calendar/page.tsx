@@ -35,6 +35,8 @@ function formatDayLong(year: number, month: number, day: number): string {
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalEvent[]>([]);
+  // Project milestones with a target date, shown alongside events (read-only here)
+  const [milestoneEvents, setMilestoneEvents] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"month" | "week">("month");
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -62,6 +64,32 @@ export default function CalendarPage() {
       .then(setEvents)
       .catch(console.error)
       .finally(() => setLoading(false));
+    apiFetch<
+      {
+        id: string;
+        name: string;
+        targetDate: string;
+        status: "open" | "done";
+        projectId: string;
+        projectName: string;
+      }[]
+    >("/milestones/calendar")
+      .then((milestones) =>
+        setMilestoneEvents(
+          milestones.map((milestone) => ({
+            id: `milestone-${milestone.id}`,
+            type: "milestone",
+            title: milestone.name,
+            date: milestone.targetDate.slice(0, 10),
+            time: "",
+            notes: "",
+            done: milestone.status === "done",
+            project: milestone.projectName,
+            href: `/dashboard/tasks/projects/${milestone.projectId}`,
+          })),
+        ),
+      )
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -75,7 +103,7 @@ export default function CalendarPage() {
   }, []);
 
   function getEventsForDate(dateKey: string): CalEvent[] {
-    return events
+    return [...events, ...milestoneEvents]
       .filter((event) => event.date === dateKey)
       .sort((eventA, eventB) => {
         if (!eventA.time && !eventB.time) return 0;

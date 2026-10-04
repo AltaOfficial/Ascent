@@ -15,23 +15,28 @@ const TOOLTIP_STYLE = {
   color: "var(--text-primary)",
 };
 
-const DRIFT_CATEGORY_META = [
-  { label: "School", color: "rgba(91,141,217,0.75)" },
-  { label: "Revenue", color: "rgba(107,187,138,0.75)" },
-  { label: "Skills", color: "rgba(196,127,212,0.75)" },
-  { label: "Maintenance", color: "rgba(200,200,210,0.35)" },
-  { label: "Personal", color: "rgba(217,167,91,0.65)" },
-];
+export type DriftWeek = Record<string, string | number> & { week: string };
+export type DriftSeries = { key: string; label: string; color: string };
 
-export type DriftWeek = { week: string } & Record<string, number>;
-
-export function DriftWatchCard({ weeks }: { weeks: DriftWeek[] }) {
+export function DriftWatchCard({
+  weeks,
+  series,
+}: {
+  weeks: DriftWeek[];
+  series: DriftSeries[];
+}) {
+  const labelOf = new Map(series.map((s) => [s.key, s.label]));
   return (
     <Card className="md:p-6">
-      <CardLabel>Drift Watch — Weekly Time Allocation</CardLabel>
+      <CardLabel>Drift Watch — Weekly Time Allocation by Project</CardLabel>
       <div className="flex flex-wrap gap-3 mb-4">
-        {DRIFT_CATEGORY_META.map((category) => (
-          <div key={category.label} className="flex items-center gap-1.5">
+        {series.length === 0 && (
+          <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+            No sessions in the last 8 weeks.
+          </span>
+        )}
+        {series.map((category) => (
+          <div key={category.key} className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-xs" style={{ background: category.color }} />
             <span className="text-[11px] tracking-[0.02em]" style={{ color: "var(--text-secondary)" }}>
               {category.label}
@@ -59,12 +64,13 @@ export function DriftWatchCard({ weeks }: { weeks: DriftWeek[] }) {
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
               labelStyle={{ color: "var(--text-secondary)", marginBottom: 2 }}
-              formatter={(val, name) => [`${val}h`, name]}
+              formatter={(val, name) => [`${val}h`, labelOf.get(String(name)) ?? name]}
             />
-            {DRIFT_CATEGORY_META.map((category) => (
+            {series.map((category) => (
               <Bar
-                key={category.label}
-                dataKey={category.label}
+                key={category.key}
+                dataKey={category.key}
+                name={category.key}
                 stackId="stack"
                 fill={category.color}
                 radius={[0, 0, 0, 0]}

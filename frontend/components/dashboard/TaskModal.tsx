@@ -8,6 +8,25 @@ import { type Task } from "@/components/dashboard/TaskRow";
 type Status = "todo" | "in_progress" | "blocked" | "done";
 type Priority = "low" | "medium" | "high";
 type RepeatFrequency = "daily" | "weekly" | "custom";
+type RepeatMode = "carry_over" | "pile_up" | "after_completion";
+
+const REPEAT_MODES: { value: RepeatMode; label: string; hint: string }[] = [
+  {
+    value: "carry_over",
+    label: "Carry over",
+    hint: "If the last one isn't done, it moves to the new date instead of duplicating",
+  },
+  {
+    value: "pile_up",
+    label: "Pile up",
+    hint: "A new copy every time, even if earlier ones are still open",
+  },
+  {
+    value: "after_completion",
+    label: "After completion",
+    hint: "The next copy appears when you complete this one",
+  },
+];
 
 type Subtask = {
   id: string;
@@ -17,6 +36,7 @@ type Subtask = {
 };
 
 export type ProjectTag = { id: string; name: string; color: string };
+export type MilestoneOption = { id: string; name: string; status?: string };
 
 export type TaskModalState = {
   open: boolean;
@@ -53,6 +73,7 @@ export function TaskModal({
   onDelete,
   onSubtaskCountChange,
   projectTags = [],
+  milestones = [],
 }: {
   state: TaskModalState;
   onClose: () => void;
@@ -64,6 +85,7 @@ export function TaskModal({
     completed: number,
   ) => void;
   projectTags?: ProjectTag[];
+  milestones?: MilestoneOption[];
 }) {
   const { open, task } = state;
 
@@ -88,6 +110,8 @@ export function TaskModal({
     useState<RepeatFrequency>("daily");
   const [repeatDays, setRepeatDays] = useState<number[]>([]);
   const [repeatInterval, setRepeatInterval] = useState(2);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>("carry_over");
+  const [milestoneId, setMilestoneId] = useState("");
 
   useEffect(() => {
     if (task) {
@@ -104,6 +128,8 @@ export function TaskModal({
       setRepeatFrequency(task.repeatTask?.repeatFrequency ?? "daily");
       setRepeatDays(task.repeatTask?.repeatDays ?? []);
       setRepeatInterval(task.repeatTask?.repeatInterval ?? 2);
+      setRepeatMode(task.repeatTask?.repeatMode ?? "carry_over");
+      setMilestoneId(task.milestoneId ?? "");
       setSubtasks([]);
       setNewSubtaskTitle("");
       setAddingSubtask(false);
@@ -132,11 +158,15 @@ export function TaskModal({
       dueDate: dueDate || null,
       estimatedMinutes: parseEstimatedInput(estimatedRaw),
       description: notes || null,
+      ...(milestones.length > 0 || task.milestoneId
+        ? { milestoneId: milestoneId || null }
+        : {}),
       repeatTask: repeatEnabled
         ? {
             repeatFrequency: repeatFrequency || null,
             repeatDays: repeatFrequency === "weekly" ? repeatDays : null,
             repeatInterval: repeatFrequency === "custom" ? repeatInterval : null,
+            repeatMode,
           }
         : null,
     });
@@ -279,6 +309,29 @@ export function TaskModal({
         </div>
       ),
     },
+    ...(milestones.length > 0
+      ? [
+          {
+            label: "Milestone",
+            element: (
+              <select
+                className="w-full rounded-md border px-2.5 py-1.5 text-[11px] outline-none"
+                style={fieldSelectStyle}
+                value={milestoneId}
+                onChange={(e) => setMilestoneId(e.target.value)}
+              >
+                <option value="">None</option>
+                {milestones.map((milestone) => (
+                  <option key={milestone.id} value={milestone.id}>
+                    {milestone.name}
+                    {milestone.status === "done" ? " (done)" : ""}
+                  </option>
+                ))}
+              </select>
+            ),
+          },
+        ]
+      : []),
     {
       label: "Due date",
       element: (
@@ -592,8 +645,15 @@ export function TaskModal({
           </div>
 
           {repeatEnabled && (
-            <div className="mt-3 flex flex-col gap-3">
+            <div className="mt-4 flex flex-col gap-4">
               {/* Frequency pills */}
+              <div className="flex flex-col gap-2">
+              <span
+                className="text-[9px] tracking-[0.08em] uppercase"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Frequency
+              </span>
               <div className="flex gap-1.5">
                 {(["daily", "weekly", "custom"] as RepeatFrequency[]).map(
                   (freq) => (
@@ -620,6 +680,7 @@ export function TaskModal({
                     </button>
                   ),
                 )}
+              </div>
               </div>
 
               {/* Weekly day picker */}
@@ -703,6 +764,48 @@ export function TaskModal({
                   </span>
                 </div>
               )}
+
+              {/* What happens to an unfinished copy */}
+              <div className="flex flex-col gap-2 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+                <span
+                  className="text-[9px] tracking-[0.08em] uppercase"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  When it comes due again
+                </span>
+                <div className="flex gap-1.5 flex-wrap">
+                  {REPEAT_MODES.map((mode) => (
+                    <button
+                      key={mode.value}
+                      title={mode.hint}
+                      onClick={() => setRepeatMode(mode.value)}
+                      className="px-3 py-1 rounded-full text-[10px] tracking-[0.05em] transition-all duration-150"
+                      style={
+                        repeatMode === mode.value
+                          ? {
+                              background: "var(--text-primary)",
+                              color: "var(--bg)",
+                              fontFamily: "var(--font-mono)",
+                            }
+                          : {
+                              background: "var(--surface-2)",
+                              color: "var(--text-secondary)",
+                              border: "1px solid var(--border)",
+                              fontFamily: "var(--font-mono)",
+                            }
+                      }
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+                <span
+                  className="text-[10px] leading-relaxed"
+                  style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}
+                >
+                  {REPEAT_MODES.find((mode) => mode.value === repeatMode)?.hint}.
+                </span>
+              </div>
 
               {/* Summary label */}
               <div

@@ -9,10 +9,9 @@ import {
   HttpCode,
   Req,
 } from '@nestjs/common';
-import { TasksService } from './tasks.service';
+import { TasksService, type TaskUpdate } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { TaskEntity } from './entities/task.entity';
-import { RepeatTaskEntity } from './entities/repeat-task.entity';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -25,7 +24,7 @@ export class TasksController {
   }
 
   @Post('ids')
-  async getTasksWithId(@Request() req, @Body() body: { taskIds: [string] }) {
+  async getTasksWithId(@Request() req, @Body() body: { taskIds: string[] }) {
     return await this.tasksService.findAllByTaskIdsAndUserId(
       req.user.userId,
       body.taskIds,
@@ -49,6 +48,25 @@ export class TasksController {
     return this.tasksService.create(req.user.userId, body);
   }
 
+  // Places tasks into a section in the given order (drag-and-drop)
+  @Post('reorder')
+  async reorderTasks(
+    @Request() req,
+    @Body()
+    body: {
+      projectId?: string | null;
+      sectionId: string | null;
+      taskIds: string[];
+    },
+  ) {
+    await this.tasksService.reorder(
+      req.user.userId,
+      body.projectId,
+      body.sectionId ?? null,
+      body.taskIds ?? [],
+    );
+  }
+
   @Post('subtask-counts')
   async getSubtaskCounts(@Body() body: { taskIds: string[] }) {
     return this.tasksService.getSubtaskCounts(body.taskIds ?? []);
@@ -58,8 +76,7 @@ export class TasksController {
   async updateTask(
     @Request() req,
     @Param('id') id: string,
-    @Body()
-    body: Partial<TaskEntity> & { repeatTask?: Partial<RepeatTaskEntity> },
+    @Body() body: TaskUpdate,
   ) {
     return this.tasksService.update(id, req.user.userId, body);
   }

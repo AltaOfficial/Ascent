@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { CalEvent, EventType, SelectedDay, TYPE_COLOR, buildDateKey } from "@/components/dashboard/calendarTypes";
 
 export function CalendarDayList({
@@ -66,6 +67,17 @@ export function CalendarDayList({
                 {event.notes}
               </div>
             )}
+            {event.href ? (
+              <div className="flex gap-1.5 mt-2.5">
+                <Link
+                  href={event.href}
+                  className="text-[11px] tracking-[0.04em] px-2.5 py-1 rounded-[5px] border transition-colors"
+                  style={{ borderColor: "var(--border)", color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}
+                >
+                  Open project →
+                </Link>
+              </div>
+            ) : (
             <div className="flex gap-1.5 mt-2.5">
               <button
                 onClick={() => onEdit(event.type, event)}
@@ -100,6 +112,7 @@ export function CalendarDayList({
                 Delete
               </button>
             </div>
+            )}
           </div>
         </div>
       ))}

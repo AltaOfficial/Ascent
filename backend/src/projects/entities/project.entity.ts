@@ -28,6 +28,14 @@ export class ProjectEntity {
   @Column({ nullable: true })
   color: string;
 
+  // null = top level (not in any folder)
+  @Column({ type: 'varchar', nullable: true })
+  folderId: string | null;
+
+  // Sort order within the folder (or the top level)
+  @Column({ default: 0 })
+  position: number;
+
   @Column()
   userId: string;
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
+import { ApiTokensSection } from "@/components/dashboard/ApiTokensSection";
 
 const TIMEZONES = [
   "UTC",
@@ -148,6 +149,8 @@ export default function SettingsPage() {
               {saving ? "Saving…" : saved ? "Saved" : "Save changes"}
             </button>
           </div>
+
+          <ApiTokensSection />
         </div>
       </div>
     </div>

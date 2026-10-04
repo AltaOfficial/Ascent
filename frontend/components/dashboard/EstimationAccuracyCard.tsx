@@ -37,7 +37,7 @@ export function EstimationAccuracyCard({ data }: { data: AccuracyEntry[] }) {
                 <div
                   className="absolute top-0 left-0 h-full"
                   style={{
-                    width: `${Math.round((entry.err / MAX_ERROR_PCT) * 100)}%`,
+                    width: `${Math.min(100, Math.round((entry.err / MAX_ERROR_PCT) * 100))}%`,
                     background: "var(--accent)",
                     opacity: 0.5,
                   }}
@@ -56,7 +56,10 @@ export function EstimationAccuracyCard({ data }: { data: AccuracyEntry[] }) {
       <div className="flex gap-6 mt-4.5 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
         {[
           { value: currentError !== null ? `${currentError}%` : "—", label: "Current avg error" },
-          { value: improvement !== null ? `-${improvement}%` : "—", label: "Improvement (3 months)" },
+          {
+            value: improvement !== null ? `${improvement > 0 ? "-" : "+"}${Math.abs(improvement)}%` : "—",
+            label: `Change since ${data[0]?.month ?? "first month"}`,
+          },
         ].map((stat) => (
           <div key={stat.label} className="flex flex-col gap-1">
             <span

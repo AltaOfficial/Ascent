@@ -16,5 +16,6 @@ import { ComplianceController } from './compliance.controller';
   ],
   controllers: [ComplianceController],
   providers: [ComplianceService],
+  exports: [ComplianceService],
 })
 export class ComplianceModule {}

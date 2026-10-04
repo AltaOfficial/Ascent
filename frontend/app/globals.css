@@ -54,6 +54,43 @@ button, [role="button"], select {
   cursor: pointer;
 }
 
+/* Native form controls: dark pickers, a chevron that matches the UI */
+:root {
+  color-scheme: dark;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  /* !important so inline `background:` shorthands don't wipe the chevron */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%239a9aaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 14px 14px !important;
+  padding-right: 32px !important;
+  text-overflow: ellipsis;
+}
+
+select option {
+  background-color: var(--surface);
+  color: var(--text-primary);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.9;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-100%); }

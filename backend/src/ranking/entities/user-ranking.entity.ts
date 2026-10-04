@@ -1,10 +1,34 @@
-import { CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
+// One row per user per scored day — the rank as it stood after that day.
 @Entity({ name: 'user_rankings' })
-export class userRanking {
+@Index(['userId', 'date'], { unique: true })
+export class UserRankingEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column()
+  userId: string;
+
+  // ISO date string: YYYY-MM-DD (user's timezone)
+  @Column({ type: 'date' })
+  date: string;
+
+  @Column({ type: 'double precision' })
+  score: number;
+
+  @Column()
+  rank: string;
+
+  @Column({ type: 'date', nullable: true })
+  cycleStart: string | null;
+
   @CreateDateColumn()
-  created_at: Date;
+  createdAt: Date;
 }

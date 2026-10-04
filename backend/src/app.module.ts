@@ -14,6 +14,11 @@ import { ComplianceModule } from './compliance/compliance.module';
 import { CalendarEventsModule } from './calendar-events/calendar-events.module';
 import { RankingModule } from './ranking/ranking.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { MilestonesModule } from './milestones/milestones.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { AdvisorModule } from './advisor/advisor.module';
+import { ApiTokensModule } from './api-tokens/api-tokens.module';
+import { McpModule } from './mcp/mcp.module';
 
 @Module({
   imports: [
@@ -40,6 +45,11 @@ import { ScheduleModule } from '@nestjs/schedule';
     TimeEntriesModule,
     ComplianceModule,
     CalendarEventsModule,
+    MilestonesModule,
+    AnalyticsModule,
+    AdvisorModule,
+    ApiTokensModule,
+    McpModule,
   ],
   controllers: [AppController],
   providers: [AppService],

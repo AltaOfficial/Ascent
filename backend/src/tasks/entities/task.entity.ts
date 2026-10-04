@@ -51,7 +51,7 @@ export class TaskEntity {
   @Column({ nullable: true })
   categoryTag: string;
 
-  @ManyToOne(() => RepeatTaskEntity, { nullable: true })
+  @ManyToOne(() => RepeatTaskEntity, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'repeatTaskId' })
   repeatTask: RepeatTaskEntity | null;
 
@@ -60,6 +60,16 @@ export class TaskEntity {
 
   @Column({ nullable: true })
   estimatedMinutes: number;
+
+  // Sort order within the task's section (or the project's unsectioned list)
+  @Column({ default: 0 })
+  position: number;
+
+  @Column({ type: 'varchar', nullable: true })
+  milestoneId: string | null;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  completedAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;

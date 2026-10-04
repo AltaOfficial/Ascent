@@ -2,7 +2,7 @@
 
 import { Card, CardLabel } from "@/components/dashboard/Card";
 
-export type HighValueEntry = { label: string; pct: number };
+export type HighValueEntry = { label: string; pct: number; color?: string };
 
 export function HighValueCard({ breakdown }: { breakdown: HighValueEntry[] }) {
   const highLeveragePct = breakdown
@@ -11,7 +11,7 @@ export function HighValueCard({ breakdown }: { breakdown: HighValueEntry[] }) {
 
   return (
     <Card className="md:p-6">
-      <CardLabel>High-Value Focus — last 30 days</CardLabel>
+      <CardLabel>High-Value Focus — High-priority tasks, last 30 days</CardLabel>
       <div className="flex items-center gap-7">
         <div>
           <div
@@ -21,9 +21,9 @@ export function HighValueCard({ breakdown }: { breakdown: HighValueEntry[] }) {
             {breakdown.length > 0 ? `${highLeveragePct}%` : "—"}
           </div>
           <div className="text-[11px] tracking-[0.02em] mt-1.5" style={{ color: "var(--text-secondary)" }}>
-            of hours were
+            of hours went to
             <br />
-            high-leverage
+            High-priority tasks
           </div>
         </div>
         <div className="flex-1 flex flex-col gap-2">
@@ -38,7 +38,11 @@ export function HighValueCard({ breakdown }: { breakdown: HighValueEntry[] }) {
               <div className="flex-1 h-px" style={{ background: "var(--border)" }}>
                 <div
                   className="h-full"
-                  style={{ width: `${entry.pct}%`, background: "var(--accent)", opacity: 0.45 }}
+                  style={{
+                    width: `${entry.pct}%`,
+                    background: entry.label === "Other" ? "var(--accent)" : (entry.color ?? "var(--accent)"),
+                    opacity: entry.label === "Other" ? 0.25 : 0.7,
+                  }}
                 />
               </div>
               <span className="text-[11px] w-8 text-right" style={{ color: "var(--text-mid)" }}>

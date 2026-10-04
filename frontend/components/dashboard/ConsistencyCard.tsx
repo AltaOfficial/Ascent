@@ -48,7 +48,7 @@ export function ConsistencyCard({ last30 }: { last30: number[] }) {
         </div>
       </div>
       <div className="mt-4 text-[11px] tracking-[0.02em]" style={{ color: "var(--text-secondary)" }}>
-        {daysAboveThreshold} of 30 days at or above {DAILY_THRESHOLD_HOURS}h. {consistencyNote}
+        {daysAboveThreshold} of {last30.length} days at or above {DAILY_THRESHOLD_HOURS}h. {consistencyNote}
       </div>
     </Card>
   );

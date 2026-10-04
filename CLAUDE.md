@@ -37,7 +37,12 @@ npm run lint          # ESLint
 ## Architecture
 
 ### Backend (NestJS)
-Modular monolith: each feature domain (`auth`, `users`, `projects`, `tasks`, `time-entries`, `compliance`, `invites`, `mailer`) is a self-contained NestJS module following controller → service → TypeORM repository pattern.
+Modular monolith: each feature domain (`auth`, `users`, `projects`, `tasks`, `time-entries`, `compliance`, `invites`, `mailer`, `ranking`, `milestones`, `analytics`, `advisor`, `api-tokens`, `mcp`) is a self-contained NestJS module following controller → service → TypeORM repository pattern.
+
+- **Pure computation:** ranking (`ranking/ranking.compute.ts`), analytics (`analytics/analytics.compute.ts`) and repeat scheduling (`tasks/repeat-schedule.ts`) are pure functions with Jest specs; services only load data. Day bucketing uses the user's `timezone` via `common/dates.ts`.
+- **Repeating tasks:** a per-minute cron in `TasksService` creates/carries over copies per the template's `repeatMode` (`carry_over` default, `pile_up`, `after_completion`).
+- **Advisor:** `POST /advisor/threads/:id/messages` streams a Claude reply (model `ADVISOR_MODEL`, default `claude-sonnet-5-5`); without `ANTHROPIC_API_KEY` it returns a mock reply.
+- **MCP:** `POST /mcp` is a stateless Streamable HTTP MCP server authenticated with personal API tokens (`asc_…`, created in Settings, stored hashed). No delete tools.
 
 - **Auth:** Passport LocalStrategy (login) + JwtStrategy (route guards). JWT stored as cookie `access_token`.
 - **Registration:** Gated behind invite codes — users must have a valid invite to sign up.
@@ -70,6 +75,8 @@ PORT=8000
 JWT_SECRET=<secret>
 RESEND_API_KEY=<key>
 WEBSITE_URL=http://localhost:3000
+ANTHROPIC_API_KEY=<key>      # Advisor; optional (mock replies without it)
+ADVISOR_MODEL=claude-sonnet-5-5  # optional override
 ```
 
 **`frontend/.env.local`**

@@ -33,13 +33,32 @@ export class ProjectsController {
   async createProject(
     @Request() req,
     @Body()
-    body: { name: string; viewType?: ProjectViewType; color?: string },
+    body: {
+      name: string;
+      viewType?: ProjectViewType;
+      color?: string;
+      folderId?: string | null;
+    },
   ) {
     return this.projectsService.create(
       req.user.userId,
       body.name,
       body.viewType,
       body.color,
+      body.folderId,
+    );
+  }
+
+  // Moves projects into a folder (null = top level) in the given order
+  @Post('arrange')
+  async arrangeProjects(
+    @Request() req,
+    @Body() body: { folderId: string | null; projectIds: string[] },
+  ) {
+    await this.projectsService.arrangeProjects(
+      req.user.userId,
+      body.folderId ?? null,
+      body.projectIds ?? [],
     );
   }
 
@@ -48,7 +67,12 @@ export class ProjectsController {
     @Request() req,
     @Param('id') id: string,
     @Body()
-    body: { name?: string; viewType?: ProjectViewType; color?: string },
+    body: {
+      name?: string;
+      viewType?: ProjectViewType;
+      color?: string;
+      folderId?: string | null;
+    },
   ) {
     return this.projectsService.update(id, req.user.userId, body);
   }
@@ -75,7 +99,20 @@ export class ProjectsController {
       projectId,
       req.user.userId,
       body.name,
-      body.order ?? 0,
+      body.order,
+    );
+  }
+
+  @Post(':id/sections/reorder')
+  async reorderSections(
+    @Request() req,
+    @Param('id') projectId: string,
+    @Body() body: { sectionIds: string[] },
+  ) {
+    return this.projectsService.reorderSections(
+      projectId,
+      req.user.userId,
+      body.sectionIds ?? [],
     );
   }
 

@@ -30,6 +30,28 @@ export class TimeEntriesService {
     return await this.timeEntryRepository.findOneBy({ id: timeEntryId });
   }
 
+  /** Records a session that already happened (manual time logging). */
+  async createCompleted(
+    userId: string,
+    taskId: string,
+    startedAt: Date,
+    endedAt: Date,
+  ): Promise<TimeEntryEntity> {
+    const timeEntry = this.timeEntryRepository.create({
+      userId,
+      taskId,
+      startedAt,
+      endedAt,
+    });
+    return await this.timeEntryRepository.save(timeEntry);
+  }
+
+  async stopActive(userId: string): Promise<TimeEntryEntity | null> {
+    const active = await this.getActive(userId);
+    if (!active) return null;
+    return await this.stop(active.id, userId);
+  }
+
   async getActive(userId: string): Promise<TimeEntryEntity | null> {
     return await this.timeEntryRepository.findOneBy({
       userId,

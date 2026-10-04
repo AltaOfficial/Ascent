@@ -1,4 +1,4 @@
-export type EventType = "task" | "exam" | "birthday" | "event";
+export type EventType = "task" | "exam" | "birthday" | "event" | "milestone";
 export type Priority = "low" | "mid" | "high";
 
 export type CalEvent = {
@@ -11,6 +11,8 @@ export type CalEvent = {
   done: boolean;
   project?: string;
   priority?: Priority;
+  /** Read-only events (project milestones) link somewhere instead of being edited here */
+  href?: string;
 };
 
 export type SelectedDay = { year: number; month: number; day: number };
@@ -20,6 +22,7 @@ export const TYPE_COLOR: Record<EventType, { text: string; bg: string; border: s
   exam:     { text: "#d96b6b", bg: "rgba(217,107,107,0.15)",  border: "rgba(217,107,107,0.5)" },
   birthday: { text: "#c47fd4", bg: "rgba(196,127,212,0.15)",  border: "rgba(196,127,212,0.5)" },
   event:    { text: "#6bbb8a", bg: "rgba(107,187,138,0.15)",  border: "rgba(107,187,138,0.5)" },
+  milestone:{ text: "#d9c46b", bg: "rgba(217,196,107,0.15)",  border: "rgba(217,196,107,0.5)" },
 };
 
 export function buildDateKey(year: number, month: number, day: number): string {

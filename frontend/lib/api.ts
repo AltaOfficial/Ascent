@@ -40,3 +40,39 @@ export async function apiFetch<TResponse>(
 
   return response.json() as Promise<TResponse>;
 }
+
+/**
+ * POSTs JSON and hands each chunk of a streamed plain-text response to
+ * `onChunk` as it arrives. Resolves with the full text.
+ */
+export async function apiStream(
+  path: string,
+  body: unknown,
+  onChunk: (text: string) => void,
+): Promise<string> {
+  const token = getTokenFromCookie();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(await response.text());
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let full = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    full += text;
+    onChunk(text);
+  }
+  return full;
+}

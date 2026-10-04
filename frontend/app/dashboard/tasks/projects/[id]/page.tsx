@@ -20,6 +20,12 @@ import {
 } from "@/components/dashboard/TaskModal";
 import { TimerBar } from "@/components/dashboard/TimerBar";
 import { type Task } from "@/components/dashboard/TaskRow";
+import {
+  MilestoneStrip,
+  type Milestone,
+} from "@/components/dashboard/MilestoneStrip";
+import { Flag } from "lucide-react";
+import { isLeftHalf, isUpperHalf, moveBefore, moveTask } from "@/lib/reorder";
 
 type Project = {
   id: string;
@@ -104,7 +110,20 @@ export default function KanbanPage() {
     taskId: string;
     fromSectionId: string;
   } | null>(null);
-  const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+  // Where a dragged task would land: before `beforeTaskId`, or at the end
+  const [dropTarget, setDropTarget] = useState<{
+    sectionId: string;
+    beforeTaskId: string | null;
+  } | null>(null);
+  // Section (column) being dragged, and the section it would land before
+  // (null = at the end, undefined = nowhere yet)
+  const [sectionDrag, setSectionDrag] = useState<string | null>(null);
+  const [sectionDropBefore, setSectionDropBefore] = useState<
+    string | null | undefined
+  >(undefined);
+
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
 
   // Add/manage sections
   const [addingSection, setAddingSection] = useState(false);
@@ -144,8 +163,11 @@ export default function KanbanPage() {
         body: JSON.stringify({ projectId }),
       }),
       apiFetch<ProjectTag[]>(`/projects/${projectId}/tags`),
+      apiFetch<Milestone[]>(`/projects/${projectId}/milestones`).catch(
+        () => [] as Milestone[],
+      ),
     ])
-      .then(async ([proj, secs, taskList, tags]) => {
+      .then(async ([proj, secs, taskList, tags, milestoneList]) => {
         if (proj.viewType === "list") {
           router.replace(`/dashboard/tasks/projects/${projectId}/list`);
           return;
@@ -153,6 +175,7 @@ export default function KanbanPage() {
         setProject(proj);
         setSections(secs.sort((a, b) => a.order - b.order));
         setProjectTags(tags);
+        setMilestones(milestoneList);
         const ids = taskList.map((t) => t.id);
         let totals: Record<string, number> = {};
         let subtaskCounts: Record<
@@ -174,7 +197,6 @@ export default function KanbanPage() {
             ).catch(() => ({})),
           ]);
         }
-        console.log(taskList);
         setTasks(
           taskList.map((t) => ({
             ...t,
@@ -186,6 +208,13 @@ export default function KanbanPage() {
       })
       .catch(() => {});
   }, [projectId]);
+
+  // Milestone progress depends on task status, so refresh after task changes.
+  function reloadMilestones() {
+    apiFetch<Milestone[]>(`/projects/${projectId}/milestones`)
+      .then(setMilestones)
+      .catch(() => {});
+  }
 
   async function handleAddTask(sectionId: string) {
     if (!newTaskTitle.trim()) {
@@ -199,39 +228,59 @@ export default function KanbanPage() {
           title: newTaskTitle.trim(),
           projectId,
           sectionId,
+          // Keep the new task visible while a milestone filter is active
+          ...(milestoneFilter ? { milestoneId: milestoneFilter } : {}),
         }),
       });
       setTasks((prev) => [...prev, created]);
+      if (milestoneFilter) reloadMilestones();
     } catch {}
     setNewTaskTitle("");
     setAddingInSection(null);
   }
 
-  async function handleDrop(toSectionId: string) {
-    setDragOverSection(null);
-    if (!drag || drag.fromSectionId === toSectionId) {
-      setDrag(null);
-      return;
-    }
-    const taskId = drag.taskId;
+  async function handleTaskDrop(sectionId: string) {
+    const current = drag;
+    const beforeTaskId =
+      dropTarget?.sectionId === sectionId ? dropTarget.beforeTaskId : null;
     setDrag(null);
+    setDropTarget(null);
+    if (!current) return;
+    const previous = tasks;
+    const { tasks: next, sectionTaskIds } = moveTask(
+      tasks,
+      current.taskId,
+      sectionId,
+      beforeTaskId,
+    );
+    setTasks(next);
     try {
-      const updated = await apiFetch<Task>(`/tasks/${taskId}/update`, {
+      await apiFetch("/tasks/reorder", {
         method: "POST",
-        body: JSON.stringify({ sectionId: toSectionId }),
+        body: JSON.stringify({ projectId, sectionId, taskIds: sectionTaskIds }),
       });
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === taskId
-            ? {
-                ...updated,
-                subtaskCount: t.subtaskCount,
-                subtaskCompletedCount: t.subtaskCompletedCount,
-              }
-            : t,
-        ),
-      );
-    } catch {}
+    } catch {
+      setTasks(previous);
+    }
+  }
+
+  async function handleSectionDrop() {
+    const moving = sectionDrag;
+    const before = sectionDropBefore;
+    setSectionDrag(null);
+    setSectionDropBefore(undefined);
+    if (!moving || before === undefined) return;
+    const previous = sections;
+    const next = moveBefore(sections, moving, before);
+    setSections(next);
+    try {
+      await apiFetch(`/projects/${projectId}/sections/reorder`, {
+        method: "POST",
+        body: JSON.stringify({ sectionIds: next.map((s) => s.id) }),
+      });
+    } catch {
+      setSections(previous);
+    }
   }
 
   async function handleSaveTask(id: string, updates: Partial<Task>) {
@@ -251,6 +300,7 @@ export default function KanbanPage() {
             : task,
         ),
       );
+      reloadMilestones();
     } catch {}
   }
 
@@ -258,6 +308,7 @@ export default function KanbanPage() {
     try {
       await apiFetch(`/tasks/${id}/delete`, { method: "POST" });
       setTasks((prev) => prev.filter((task) => task.id !== id));
+      reloadMilestones();
     } catch {}
   }
 
@@ -281,6 +332,7 @@ export default function KanbanPage() {
             : t,
         ),
       );
+      if (task.milestoneId) reloadMilestones();
     } catch {}
   }
 
@@ -586,11 +638,32 @@ export default function KanbanPage() {
         </div>
       </div>
 
+      {/* Milestones */}
+      <div className="shrink-0 px-8 pt-5">
+        <MilestoneStrip
+          projectId={projectId}
+          milestones={milestones}
+          onChange={setMilestones}
+          selectedId={milestoneFilter}
+          onSelect={setMilestoneFilter}
+        />
+      </div>
+
       {/* Board */}
       <div
         className="overflow-x-auto"
+        onDragOver={(e) => {
+          // Dropping a column past the last one puts it at the end
+          if (sectionDrag) {
+            e.preventDefault();
+            if (e.target === e.currentTarget) setSectionDropBefore(null);
+          }
+        }}
+        onDrop={(e) => {
+          if (sectionDrag && e.target === e.currentTarget) handleSectionDrop();
+        }}
         style={{
-          padding: "24px 32px 32px",
+          padding: "8px 32px 32px",
           display: "flex",
           gap: 12,
           alignItems: "flex-start",
@@ -622,13 +695,21 @@ export default function KanbanPage() {
           </div>
         )}
 
-        {sections.map((section) => {
-          const colTasks = tasks.filter((t) => t.sectionId === section.id);
+        {sections.map((section, sectionIndex) => {
+          const colTasks = tasks.filter(
+            (t) =>
+              t.sectionId === section.id &&
+              (!milestoneFilter || t.milestoneId === milestoneFilter),
+          );
           const isRenaming = renamingSectionId === section.id;
           const isDropTarget =
-            drag !== null &&
-            dragOverSection === section.id &&
-            drag.fromSectionId !== section.id;
+            drag !== null && dropTarget?.sectionId === section.id;
+          const showDropLineAtEnd =
+            isDropTarget && dropTarget?.beforeTaskId === null;
+          const sectionDropHere =
+            sectionDrag !== null &&
+            sectionDrag !== section.id &&
+            sectionDropBefore === section.id;
 
           return (
             <div
@@ -638,15 +719,52 @@ export default function KanbanPage() {
                 flexShrink: 0,
                 display: "flex",
                 flexDirection: "column",
+                opacity: sectionDrag === section.id ? 0.4 : 1,
+                boxShadow: sectionDropHere
+                  ? "-7px 0 0 -5px var(--text-mid)"
+                  : undefined,
               }}
-              onDragOver={(e) => e.preventDefault()}
-              onDragEnter={() =>
-                setDragOverSection((s) => (s === section.id ? s : section.id))
-              }
-              onDrop={() => handleDrop(section.id)}
+              onDragOver={(e) => {
+                if (sectionDrag) {
+                  e.preventDefault();
+                  const before = isLeftHalf(e)
+                    ? section.id
+                    : (sections[sectionIndex + 1]?.id ?? null);
+                  setSectionDropBefore(before);
+                  return;
+                }
+                if (!drag) return;
+                e.preventDefault();
+                // Over empty column space: drop at the end
+                if (
+                  dropTarget?.sectionId !== section.id ||
+                  dropTarget.beforeTaskId !== null
+                ) {
+                  setDropTarget({ sectionId: section.id, beforeTaskId: null });
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (sectionDrag) handleSectionDrop();
+                else handleTaskDrop(section.id);
+              }}
             >
-              {/* Column header */}
-              <div className="flex items-center justify-between mb-2.5 px-0.5 group/header">
+              {/* Column header: drag it to reorder sections */}
+              <div
+                className="flex items-center justify-between mb-2.5 px-0.5 group/header"
+                draggable={!isRenaming}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", section.id);
+                  setSectionDrag(section.id);
+                }}
+                onDragEnd={() => {
+                  setSectionDrag(null);
+                  setSectionDropBefore(undefined);
+                }}
+                style={{ cursor: isRenaming ? undefined : "grab" }}
+                title="Drag to reorder sections"
+              >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   {isRenaming ? (
                     <input
@@ -710,6 +828,7 @@ export default function KanbanPage() {
                 className="flex flex-col gap-1.5 pb-1 rounded-lg transition-all"
                 style={{
                   scrollbarWidth: "none",
+                  minHeight: drag ? 40 : undefined,
                   ...(isDropTarget
                     ? {
                         outline: "2px dashed var(--border-mid)",
@@ -719,30 +838,60 @@ export default function KanbanPage() {
                     : {}),
                 }}
               >
-                {colTasks.map((task) => {
+                {colTasks.map((task, taskIndex) => {
                   const isRunning = activeEntry?.taskId === task.id;
                   const due = fmtDue(task.dueDate ?? null);
                   const isDragging = drag?.taskId === task.id;
                   const tag = projectTags.find(
                     (t) => t.name === task.categoryTag,
                   );
+                  const milestone = milestoneFilter
+                    ? null
+                    : milestones.find((m) => m.id === task.milestoneId);
+                  const showDropLine =
+                    isDropTarget &&
+                    dropTarget?.beforeTaskId === task.id &&
+                    !isDragging;
 
                   return (
+                    <div key={task.id} className="flex flex-col gap-1.5">
+                    {showDropLine && (
+                      <div
+                        className="h-0.5 rounded-full mx-1"
+                        style={{ background: "var(--text-mid)" }}
+                      />
+                    )}
                     <div
-                      key={task.id}
                       draggable
                       onDragStart={(e) => {
-                        // Let the browser capture the drag image before hiding the element
+                        e.stopPropagation();
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", task.id);
+                        // Let the browser capture the drag image before dimming the element
                         const el = e.currentTarget as HTMLElement;
                         setTimeout(() => {
-                          el.style.opacity = "0";
+                          el.style.opacity = "0.25";
                         }, 0);
                         setDrag({ taskId: task.id, fromSectionId: section.id });
                       }}
                       onDragEnd={(e) => {
                         (e.currentTarget as HTMLElement).style.opacity = "";
                         setDrag(null);
-                        setDragOverSection(null);
+                        setDropTarget(null);
+                      }}
+                      onDragOver={(e) => {
+                        if (!drag) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const beforeTaskId = isUpperHalf(e)
+                          ? task.id
+                          : (colTasks[taskIndex + 1]?.id ?? null);
+                        if (
+                          dropTarget?.sectionId !== section.id ||
+                          dropTarget.beforeTaskId !== beforeTaskId
+                        ) {
+                          setDropTarget({ sectionId: section.id, beforeTaskId });
+                        }
                       }}
                       onClick={() =>
                         !isDragging && setModal({ open: true, task })
@@ -918,9 +1067,29 @@ export default function KanbanPage() {
                           </div>
                         </div>
                       )}
+                      {milestone && (
+                        <div
+                          className="mt-2 flex items-center gap-1.5 text-[10px] tracking-[0.03em] min-w-0"
+                          style={{
+                            color: "var(--text-secondary)",
+                            fontFamily: "var(--font-mono)",
+                          }}
+                        >
+                          <Flag size={10} className="shrink-0" aria-hidden />
+                          <span className="truncate">{milestone.name}</span>
+                        </div>
+                      )}
+                    </div>
                     </div>
                   );
                 })}
+
+                {showDropLineAtEnd && (
+                  <div
+                    className="h-0.5 rounded-full mx-1"
+                    style={{ background: "var(--text-mid)" }}
+                  />
+                )}
 
                 {/* Inline add */}
                 {addingInSection === section.id && (
@@ -1106,6 +1275,7 @@ export default function KanbanPage() {
           )
         }
         projectTags={projectTags}
+        milestones={milestones}
       />
 
       <TimerBar

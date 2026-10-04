@@ -20,12 +20,15 @@ export type Task = {
   actualMinutes?: number | null;
   isHighValue: boolean;
   isRevenueImpact: boolean;
+  milestoneId?: string | null;
+  position?: number;
   subtaskCount?: number;
   subtaskCompletedCount?: number;
   repeatTask?: {
     repeatFrequency?: "daily" | "weekly" | "custom" | null;
     repeatDays?: number[] | null;
     repeatInterval?: number | null;
+    repeatMode?: "carry_over" | "pile_up" | "after_completion" | null;
   } | null;
 };
 

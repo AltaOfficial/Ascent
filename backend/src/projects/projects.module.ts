@@ -5,6 +5,8 @@ import { ProjectSectionEntity } from './entities/project-section.entity';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
 import { TaskTagEntity } from './entities/task-tag.entity';
+import { ProjectFolderEntity } from './entities/project-folder.entity';
+import { ProjectFoldersController } from './project-folders.controller';
 
 @Module({
   imports: [
@@ -12,9 +14,10 @@ import { TaskTagEntity } from './entities/task-tag.entity';
       ProjectEntity,
       ProjectSectionEntity,
       TaskTagEntity,
+      ProjectFolderEntity,
     ]),
   ],
-  controllers: [ProjectsController],
+  controllers: [ProjectsController, ProjectFoldersController],
   providers: [ProjectsService],
   exports: [ProjectsService],
 })

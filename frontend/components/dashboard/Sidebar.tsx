@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { useTimerStore } from "@/lib/timerStore";
 
 const NAV = [{ label: "Dashboard", href: "/dashboard" }];
@@ -133,9 +134,12 @@ export default function Sidebar({
             }}
           >
             <span>Tasks</span>
-            <span className="text-[9px]" style={{ opacity: 0.5 }}>
-              {tasksOpen ? "▾" : "▸"}
-            </span>
+            <ChevronDown
+              size={14}
+              className="transition-transform duration-150"
+              style={{ opacity: 0.6, transform: tasksOpen ? "none" : "rotate(-90deg)" }}
+              aria-hidden
+            />
           </button>
           {tasksOpen && (
             <div>

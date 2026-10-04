@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { format, subDays, startOfDay, endOfDay, startOfWeek, addDays, differenceInMilliseconds } from "date-fns";
 import HoursChart from "@/components/dashboard/HoursChart";
 import TaskInbox from "@/components/dashboard/TaskInbox";
-import { DriftDonut, MiniLine } from "@/components/dashboard/ClientCharts";
+import { DriftDonut, RecentHoursChart } from "@/components/dashboard/ClientCharts";
 import { Card, CardLabel } from "@/components/dashboard/Card";
+import { RankCard, type RankResult } from "@/components/dashboard/RankCard";
 import { apiFetch } from "@/lib/api";
-import { RANKS } from "@/lib/constants";
 
 type HoursEntry = { date: string; hours: number };
 type TimeEntry = { taskId: string; userId: string; startedAt: string; endedAt: string };
@@ -30,8 +30,6 @@ function formatDateParam(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
 
-const UNRANKED = RANKS[0];
-
 export default function DashboardPage() {
   const todayLabel = format(new Date(), "EEEE, MMMM d, yyyy");
   const [hoursData, setHoursData] = useState<HoursEntry[]>([]);
@@ -40,6 +38,9 @@ export default function DashboardPage() {
   const [complianceDelta, setComplianceDelta] = useState<number | null>(null);
 
   const [driftEntries, setDriftEntries] = useState<DriftEntry[]>([]);
+
+  const [rank, setRank] = useState<RankResult | null>(null);
+  const [recentHours, setRecentHours] = useState<HoursEntry[] | null>(null);
 
   const fetchHours = useCallback(async (range: DateRange) => {
     const data = await apiFetch<HoursEntry[]>("/users/hours", {
@@ -168,6 +169,17 @@ export default function DashboardPage() {
     [fetchHours, fetchCompliance, fetchDriftData]
   );
 
+  // Rank and the last two weeks don't depend on the selected chart period.
+  useEffect(() => {
+    apiFetch<RankResult>("/ranking/me").then(setRank).catch(() => {});
+    apiFetch<{ dailyHours: HoursEntry[] }>("/analytics/summary")
+      .then((summary) => setRecentHours(summary.dailyHours.slice(-14)))
+      .catch(() => setRecentHours([]));
+  }, []);
+
+  const recentTotal = recentHours?.reduce((sum, day) => sum + day.hours, 0) ?? 0;
+  const recentActiveDays = recentHours?.filter((day) => day.hours > 0).length ?? 0;
+
   useEffect(() => {
     fetchHours("30d");
     fetchCompliance("30d");
@@ -192,40 +204,8 @@ export default function DashboardPage() {
       {/* Hero grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-6">
 
-        {/* Rank — defaults to lowest rank when no data */}
-        <Card style={{ justifyContent: "flex-start", gap: 0, minHeight: undefined }}>
-          <CardLabel>Ascent Rank</CardLabel>
-          <div className="flex items-center gap-3.5">
-            <div
-              className="w-11 h-11 rounded-lg border flex items-center justify-center shrink-0 text-xl"
-              style={{
-                background: "var(--surface-2)",
-                borderColor: "var(--border-mid)",
-                color: UNRANKED.color,
-                opacity: 0.5,
-              }}
-            >
-              {UNRANKED.icon}
-            </div>
-            <div className="flex-1">
-              <div
-                className="text-[15px] font-semibold tracking-[-0.01em]"
-                style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
-              >
-                {UNRANKED.name}
-              </div>
-              <div className="text-[10px] tracking-[0.02em] mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                no data yet
-              </div>
-              <div
-                className="h-px mt-2.5 rounded overflow-hidden"
-                style={{ background: "var(--border)" }}
-              >
-                <div className="h-full rounded" style={{ width: "0%", background: "var(--accent)", opacity: 0.5 }} />
-              </div>
-            </div>
-          </div>
-        </Card>
+        {/* Rank */}
+        <RankCard rank={rank} />
 
         {/* Compliance */}
         <Card style={{ minHeight: undefined }}>
@@ -254,16 +234,26 @@ export default function DashboardPage() {
           <DriftDonut data={driftEntries} />
         </Card>
 
-        {/* Rolling Average */}
-        <Card style={{ justifyContent: "flex-start", minHeight: undefined }}>
-          <div className="flex items-start justify-between mb-1">
-            <CardLabel>Rolling Average</CardLabel>
-          </div>
-          <div className="text-[10px] tracking-[0.02em] mb-2" style={{ color: "var(--text-secondary)" }}>
-            Daily focus hours
-          </div>
-          <div className="h-13">
-            <MiniLine />
+        {/* Last 14 days */}
+        <Card style={{ minHeight: undefined }}>
+          <CardLabel>Last 14 Days</CardLabel>
+          <div className="flex items-end justify-between gap-3">
+            <div className="shrink-0">
+              <div
+                className="text-[26px] font-semibold tracking-[-0.03em] leading-none"
+                style={{ fontFamily: "var(--font-display)", color: "var(--text-primary)" }}
+              >
+                {recentHours ? `${Math.round(recentTotal * 10) / 10}h` : "—"}
+              </div>
+              <div className="text-[11px] tracking-[0.02em] mt-1" style={{ color: "var(--text-mid)" }}>
+                {recentHours
+                  ? `${Math.round((recentTotal / 14) * 10) / 10}h/day · ${recentActiveDays} active`
+                  : "focus hours"}
+              </div>
+            </div>
+            <div className="h-11 flex-1 min-w-0 max-w-40">
+              {recentHours && recentHours.length > 0 && <RecentHoursChart data={recentHours} />}
+            </div>
           </div>
         </Card>
       </div>
