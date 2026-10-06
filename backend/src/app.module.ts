@@ -18,7 +18,7 @@ import { MilestonesModule } from './milestones/milestones.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AdvisorModule } from './advisor/advisor.module';
 import { ApiTokensModule } from './api-tokens/api-tokens.module';
-import { McpModule } from './mcp/mcp.module';
+import { AscentMcpModule } from './mcp/mcp.module';
 
 @Module({
   imports: [
@@ -49,7 +49,7 @@ import { McpModule } from './mcp/mcp.module';
     AnalyticsModule,
     AdvisorModule,
     ApiTokensModule,
-    McpModule,
+    AscentMcpModule,
   ],
   controllers: [AppController],
   providers: [AppService],

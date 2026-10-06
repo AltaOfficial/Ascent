@@ -2,8 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
-import { z } from 'zod';
+import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import {
   AdvisorMemoryEntity,
   AdvisorMessageEntity,
@@ -35,13 +34,21 @@ const FALLBACK_SUGGESTIONS = [
   'What is my biggest bottleneck right now?',
 ];
 
-const SuggestionsSchema = z.object({
-  title: z
-    .string()
-    .describe('A 2–5 word title for this conversation, no quotes or emoji'),
-  suggestions: z
-    .array(z.string())
-    .describe('Exactly three questions the user could ask next'),
+const SuggestionsFormat = jsonSchemaOutputFormat({
+  type: 'object',
+  properties: {
+    title: {
+      type: 'string',
+      description: 'A 2–5 word title for this conversation, no quotes or emoji',
+    },
+    suggestions: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'Exactly three questions the user could ask next',
+    },
+  },
+  required: ['title', 'suggestions'],
+  additionalProperties: false,
 });
 
 export type ThreadSummary = {
@@ -407,7 +414,7 @@ export class AdvisorService {
           max_tokens: 2000,
           output_config: {
             effort: 'low',
-            format: zodOutputFormat(SuggestionsSchema),
+            format: SuggestionsFormat,
           },
           system: buildSystemPrompt(
             memory,
