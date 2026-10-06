@@ -17,8 +17,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MilestonesModule } from './milestones/milestones.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AdvisorModule } from './advisor/advisor.module';
-import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { AscentMcpModule } from './mcp/mcp.module';
+import { McpAuthModule } from '@rekog/mcp-nest';
+import { AscentLoginProvider } from './mcp/ascent-login.provider';
+
+// Public origin of this backend; OAuth metadata, token issuer and the MCP
+// resource URL are all derived from it
+const apiUrl = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 8000}`;
 
 @Module({
   imports: [
@@ -35,6 +40,32 @@ import { AscentMcpModule } from './mcp/mcp.module';
       synchronize: true, // dont use in production
       autoLoadEntities: true,
     }),
+    // OAuth for MCP clients (Claude connectors, Claude Code): registration,
+    // PKCE, tokens and discovery come from @rekog/mcp-nest; sign-in is
+    // Ascent's own login (AscentLoginProvider).
+    McpAuthModule.forRoot({
+      provider: AscentLoginProvider,
+      // Only used by third-party identity providers; Ascent's login needs none
+      clientId: 'ascent',
+      clientSecret: 'unused',
+      jwtSecret: process.env.JWT_SECRET!,
+      serverUrl: apiUrl,
+      jwtIssuer: apiUrl,
+      resource: `${apiUrl}/mcp`,
+      storeConfiguration: {
+        type: 'typeorm',
+        options: {
+          type: process.env.DB_TYPE,
+          host: process.env.DB_HOST,
+          port: Number(process.env.DB_PORT),
+          username: process.env.DB_USER,
+          password: process.env.DB_PASS,
+          database: process.env.DB_NAME,
+          ssl: process.env.DB_SSL as any,
+          synchronize: true, // dont use in production
+        },
+      },
+    }),
     RankingModule,
     MailerModule,
     InvitesModule,
@@ -48,7 +79,6 @@ import { AscentMcpModule } from './mcp/mcp.module';
     MilestonesModule,
     AnalyticsModule,
     AdvisorModule,
-    ApiTokensModule,
     AscentMcpModule,
   ],
   controllers: [AppController],

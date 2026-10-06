@@ -24,6 +24,7 @@ import {
   UserMessage,
 } from "@/components/dashboard/AdvisorMessage";
 import { apiFetch, apiStream } from "@/lib/api";
+import { SelectField } from "@/components/ui/select";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type MessageRole = "user" | "assistant";
@@ -850,9 +851,9 @@ export default function AdvisoryPage() {
               <MemSection label="Identity">
                 <div className="grid grid-cols-2 gap-2.5">
                   <MemField label="Current stage">
-                    <select
+                    <SelectField
                       value={memoryDraft.stage}
-                      onChange={(e) => setMemoryDraft((prev) => ({ ...prev, stage: e.target.value }))}
+                      onChange={(value) => setMemoryDraft((prev) => ({ ...prev, stage: value }))}
                       className="w-full rounded-lg border px-3 py-2 text-[12px] outline-none"
                       style={{ ...fieldStyle, color: memoryDraft.stage ? "var(--text-primary)" : "var(--text-secondary)" }}
                     >
@@ -860,7 +861,7 @@ export default function AdvisoryPage() {
                       <option>Pre-revenue</option>
                       <option>Revenue</option>
                       <option>Scaling</option>
-                    </select>
+                    </SelectField>
                   </MemField>
                   <MemField label="Strategic priority order">
                     <input

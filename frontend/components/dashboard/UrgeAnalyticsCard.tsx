@@ -16,6 +16,7 @@ import {
 import { Card, CardLabel } from "@/components/dashboard/Card";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
+import { SelectField } from "@/components/ui/select";
 
 interface Rule {
   id: string;
@@ -232,9 +233,9 @@ export default function UrgeAnalyticsCard() {
     <Card className="md:p-6">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
         <CardLabel>Urge Log</CardLabel>
-        <select
+        <SelectField
           value={ruleId}
-          onChange={(e) => setRuleId(e.target.value)}
+          onChange={(value) => setRuleId(value)}
           className="text-[11px] rounded-[5px] px-2 py-1.5 outline-none"
           style={selectStyle}
         >
@@ -243,7 +244,7 @@ export default function UrgeAnalyticsCard() {
               {rule.name}
             </option>
           ))}
-        </select>
+        </SelectField>
       </div>
 
       <div className="flex items-center justify-between mb-5">

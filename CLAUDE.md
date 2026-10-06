@@ -42,7 +42,8 @@ Modular monolith: each feature domain (`auth`, `users`, `projects`, `tasks`, `ti
 - **Pure computation:** ranking (`ranking/ranking.compute.ts`), analytics (`analytics/analytics.compute.ts`) and repeat scheduling (`tasks/repeat-schedule.ts`) are pure functions with Jest specs; services only load data. Day bucketing uses the user's `timezone` via `common/dates.ts`.
 - **Repeating tasks:** a per-minute cron in `TasksService` creates/carries over copies per the template's `repeatMode` (`carry_over` default, `pile_up`, `after_completion`).
 - **Advisor:** `POST /advisor/threads/:id/messages` streams a Claude reply (model `ADVISOR_MODEL`, default `claude-sonnet-5-5`); without `ANTHROPIC_API_KEY` it returns a mock reply.
-- **MCP:** `POST /mcp` is served by `@rekog/mcp-nest` 1.x (`McpModule.forRoot`, stateless Streamable HTTP, no microservices). Tools are `@Tool` methods on providers in `src/mcp/tools/` with zod `parameters`; `McpAuthGuard` authenticates personal API tokens (`asc_…`, created in Settings, stored hashed) and sets `request.user`. No delete tools.
+- **MCP:** `POST /mcp` is served by `@rekog/mcp-nest` 1.x (`McpModule.forRoot`, stateless Streamable HTTP, no microservices). Tools are `@Tool` methods on providers in `src/mcp/tools/` with zod `parameters`; `McpAuthGuard` accepts personal API tokens (`asc_…`, created in Settings, for Claude Code) or OAuth access tokens (`asca_…`) and sets `request.user`. No delete tools.
+- **OAuth (for Claude connectors):** `src/oauth/` is an OAuth 2.1 authorization server: RFC 9728/8414 discovery under `/.well-known/…`, dynamic client registration at `/oauth/register`, PKCE (S256) required, consent on the frontend at `/oauth/authorize` (Ascent login), rotating refresh tokens, revocable from Settings → Connected apps. All codes/tokens/secrets are stored as SHA-256 hashes. Set `API_URL` to the backend's public https origin in production.
 
 - **Auth:** Passport LocalStrategy (login) + JwtStrategy (route guards). JWT stored as cookie `access_token`.
 - **Registration:** Gated behind invite codes — users must have a valid invite to sign up.
@@ -77,6 +78,7 @@ RESEND_API_KEY=<key>
 WEBSITE_URL=http://localhost:3000
 ANTHROPIC_API_KEY=<key>      # Advisor; optional (mock replies without it)
 ADVISOR_MODEL=claude-sonnet-5-5  # optional override
+API_URL=https://<public backend origin>  # OAuth metadata; falls back to X-Forwarded-* headers
 ```
 
 **`frontend/.env.local`**

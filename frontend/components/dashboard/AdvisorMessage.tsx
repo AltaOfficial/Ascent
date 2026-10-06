@@ -1,150 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import { Check, Copy, Sparkles } from "lucide-react";
 
-// Renders the small subset of markdown the advisor uses: paragraphs,
-// - / 1. lists, # headings, **bold** and `code`. Built as React nodes, never
-// as HTML, so model output can't inject markup.
-
-function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
-  const nodes: React.ReactNode[] = [];
-  const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
-  let last = 0;
-  let match: RegExpExecArray | null;
-  let index = 0;
-  while ((match = pattern.exec(text))) {
-    if (match.index > last) nodes.push(text.slice(last, match.index));
-    const token = match[0];
-    if (token.startsWith("**")) {
-      nodes.push(
-        <strong key={`${keyPrefix}-${index++}`} className="font-semibold" style={{ color: "var(--text-primary)" }}>
-          {token.slice(2, -2)}
-        </strong>,
-      );
-    } else {
-      nodes.push(
-        <code
-          key={`${keyPrefix}-${index++}`}
-          className="px-1 py-0.5 rounded text-[12px]"
-          style={{ background: "var(--surface-raised)", border: "1px solid var(--border)" }}
-        >
-          {token.slice(1, -1)}
-        </code>,
-      );
-    }
-    last = match.index + token.length;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
-  return nodes;
-}
-
-type ListItem = { marker: string; text: string };
-
-type Block =
-  | { kind: "p"; lines: string[] }
-  | { kind: "ul" | "ol"; items: ListItem[] }
-  | { kind: "h"; text: string };
-
-function parseBlocks(content: string): Block[] {
-  const blocks: Block[] = [];
-  // A blank line ends a paragraph but not a list: models often put blank
-  // lines between list items.
-  let blankSinceLast = false;
-  for (const rawLine of content.split("\n")) {
-    const line = rawLine.trimEnd();
-    if (!line.trim()) {
-      blankSinceLast = true;
-      continue;
-    }
-    const last = blocks[blocks.length - 1];
-    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
-    const numbered = line.match(/^\s*(\d+)[.)]\s+(.*)$/);
-    const heading = line.match(/^#{1,4}\s+(.*)$/);
-    if (bullet) {
-      if (last?.kind === "ul") last.items.push({ marker: "–", text: bullet[1] });
-      else blocks.push({ kind: "ul", items: [{ marker: "–", text: bullet[1] }] });
-    } else if (numbered) {
-      const item = { marker: `${numbered[1]}.`, text: numbered[2] };
-      if (last?.kind === "ol") last.items.push(item);
-      else blocks.push({ kind: "ol", items: [item] });
-    } else if (heading) {
-      blocks.push({ kind: "h", text: heading[1] });
-    } else if (last?.kind === "p" && !blankSinceLast) {
-      last.lines.push(line);
-    } else if ((last?.kind === "ul" || last?.kind === "ol") && !blankSinceLast && /^\s+/.test(rawLine)) {
-      // Indented continuation of the previous list item
-      const item = last.items[last.items.length - 1];
-      item.text += ` ${line.trim()}`;
-    } else {
-      blocks.push({ kind: "p", lines: [line] });
-    }
-    blankSinceLast = false;
-  }
-  return blocks;
-}
-
-export function AdvisorMarkdown({
-  content,
-  trailing,
-}: {
-  content: string;
-  /** Rendered inline at the very end of the text (e.g. a typing caret) */
-  trailing?: React.ReactNode;
-}) {
-  const blocks = parseBlocks(content);
-  const lastIndex = blocks.length - 1;
-  return (
-    <div className="flex flex-col gap-3">
-      {blocks.length === 0 && trailing}
-      {blocks.map((block, i) => {
-        const tail = i === lastIndex ? trailing : null;
-        if (block.kind === "h") {
-          return (
-            <div
-              key={i}
-              className="text-[11px] tracking-[0.08em] uppercase pt-1"
-              style={{ color: "var(--text-mid)" }}
-            >
-              {renderInline(block.text, `h${i}`)}
-              {tail}
-            </div>
-          );
-        }
-        if (block.kind === "ul" || block.kind === "ol") {
-          const List = block.kind === "ul" ? "ul" : "ol";
-          return (
-            <List key={i} className="flex flex-col gap-2">
-              {block.items.map((item, j) => (
-                <li key={j} className="flex gap-2.5">
-                  <span className="shrink-0 min-w-4 text-right" style={{ color: "var(--text-secondary)" }}>
-                    {item.marker}
-                  </span>
-                  <span>
-                    {renderInline(item.text, `l${i}-${j}`)}
-                    {j === block.items.length - 1 && tail}
-                  </span>
-                </li>
-              ))}
-            </List>
-          );
-        }
-        if (block.kind !== "p") return null;
-        return (
-          <p key={i}>
-            {block.lines.map((line, j) => (
-              <React.Fragment key={j}>
-                {j > 0 && <br />}
-                {renderInline(line, `p${i}-${j}`)}
-              </React.Fragment>
-            ))}
-            {tail}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
+const markdownComponents: Components = {
+  p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+  strong: ({ children }) => (
+    <strong className="font-semibold" style={{ color: "var(--text-primary)" }}>
+      {children}
+    </strong>
+  ),
+  ul: ({ children }) => <ul className="list-disc pl-5 mb-3 last:mb-0 flex flex-col gap-1.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 last:mb-0 flex flex-col gap-1.5">{children}</ol>,
+  li: ({ children }) => <li className="pl-1 marker:text-(--text-secondary)">{children}</li>,
+  h1: ({ children }) => <h3 className="text-[11px] tracking-[0.08em] uppercase mb-2" style={{ color: "var(--text-mid)" }}>{children}</h3>,
+  h2: ({ children }) => <h3 className="text-[11px] tracking-[0.08em] uppercase mb-2" style={{ color: "var(--text-mid)" }}>{children}</h3>,
+  h3: ({ children }) => <h3 className="text-[11px] tracking-[0.08em] uppercase mb-2" style={{ color: "var(--text-mid)" }}>{children}</h3>,
+  code: ({ children }) => (
+    <code
+      className="px-1 py-0.5 rounded text-[12px]"
+      style={{ background: "var(--surface-raised)", border: "1px solid var(--border)" }}
+    >
+      {children}
+    </code>
+  ),
+  a: ({ children, href }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+      {children}
+    </a>
+  ),
+};
 
 export function AdvisorAvatar() {
   return (
@@ -184,21 +70,10 @@ export function AssistantMessage({
       <AdvisorAvatar />
       <div className="flex-1 min-w-0 pt-0.5">
         <div
-          className="text-[13px] leading-[1.8] tracking-[0.005em]"
+          className={`text-[13px] leading-[1.8] tracking-[0.005em]${streaming ? " advisor-streaming" : ""}`}
           style={{ color: "var(--text-primary)" }}
         >
-          <AdvisorMarkdown
-            content={content}
-            trailing={
-              streaming ? (
-                <span
-                  className="inline-block w-1.5 h-3.5 align-[-2px] ml-1"
-                  style={{ background: "var(--text-mid)", animation: "blink 1s step-end infinite" }}
-                  aria-hidden
-                />
-              ) : null
-            }
-          />
+          <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
         </div>
         {!streaming && (
           <button

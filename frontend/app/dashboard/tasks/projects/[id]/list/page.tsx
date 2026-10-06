@@ -17,7 +17,18 @@ import {
   type Milestone,
 } from "@/components/dashboard/MilestoneStrip";
 import { Flag } from "lucide-react";
-import { isUpperHalf, moveBefore, moveTask } from "@/lib/reorder";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { DroppableArea, SortableItem } from "@/components/dashboard/Sortable";
+import {
+  containerDndId,
+  sectionDndId,
+  taskDndId,
+  useSectionTaskDnd,
+} from "@/lib/useSectionTaskDnd";
 
 type Project = { id: string; name: string; color: string | null; viewType: string };
 type Section = { id: string; name: string; order: number; projectId: string };
@@ -112,20 +123,12 @@ export default function ListPage() {
 
   const [managingTags, setManagingTags] = useState(false);
 
-  // Drag-and-drop: a task row, or a whole section
-  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<{
-    sectionId: string;
-    beforeTaskId: string | null;
-  } | null>(null);
-  const [sectionDrag, setSectionDrag] = useState<string | null>(null);
-  // Section the dragged section would land before (null = end, undefined = nowhere)
-  const [sectionDropBefore, setSectionDropBefore] = useState<
-    string | null | undefined
-  >(undefined);
-
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
+
+  const dnd = useSectionTaskDnd({ projectId, sections, setSections, tasks, setTasks });
+  const draggedTask = tasks.find((t) => t.id === dnd.activeTaskId) ?? null;
+  const draggedSection = sections.find((s) => s.id === dnd.activeSectionId) ?? null;
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#6b7280");
 
@@ -199,50 +202,6 @@ export default function ListPage() {
     apiFetch<Milestone[]>(`/projects/${projectId}/milestones`)
       .then(setMilestones)
       .catch(() => {});
-  }
-
-  async function handleTaskDrop(sectionId: string) {
-    const taskId = dragTaskId;
-    const beforeTaskId =
-      dropTarget?.sectionId === sectionId ? dropTarget.beforeTaskId : null;
-    setDragTaskId(null);
-    setDropTarget(null);
-    if (!taskId) return;
-    const previous = tasks;
-    const { tasks: next, sectionTaskIds } = moveTask(
-      tasks,
-      taskId,
-      sectionId,
-      beforeTaskId,
-    );
-    setTasks(next);
-    try {
-      await apiFetch("/tasks/reorder", {
-        method: "POST",
-        body: JSON.stringify({ projectId, sectionId, taskIds: sectionTaskIds }),
-      });
-    } catch {
-      setTasks(previous);
-    }
-  }
-
-  async function handleSectionDrop() {
-    const moving = sectionDrag;
-    const before = sectionDropBefore;
-    setSectionDrag(null);
-    setSectionDropBefore(undefined);
-    if (!moving || before === undefined) return;
-    const previous = sections;
-    const next = moveBefore(sections, moving, before);
-    setSections(next);
-    try {
-      await apiFetch(`/projects/${projectId}/sections/reorder`, {
-        method: "POST",
-        body: JSON.stringify({ sectionIds: next.map((s) => s.id) }),
-      });
-    } catch {
-      setSections(previous);
-    }
   }
 
   async function handleAddTask(sectionId: string) {
@@ -632,69 +591,39 @@ export default function ListPage() {
           </div>
         )}
 
-        {sections.map((sec, sectionIndex) => {
+        <DndContext
+          sensors={dnd.sensors}
+          collisionDetection={dnd.collisionDetection}
+          measuring={dnd.measuring}
+          {...dnd.handlers}
+        >
+        <SortableContext
+          items={sections.map((sec) => sectionDndId(sec.id))}
+          strategy={verticalListSortingStrategy}
+        >
+        {sections.map((sec) => {
           const secTasks = tasks.filter(
             (t) =>
               t.sectionId === sec.id &&
               (!milestoneFilter || t.milestoneId === milestoneFilter),
           );
           const isRenaming = renamingSectionId === sec.id;
-          const isTaskDropTarget =
-            dragTaskId !== null && dropTarget?.sectionId === sec.id;
-          const sectionDropHere =
-            sectionDrag !== null &&
-            sectionDrag !== sec.id &&
-            sectionDropBefore === sec.id;
           return (
+            <SortableItem key={sec.id} id={sectionDndId(sec.id)} data={{ type: "section" }}>
+            {(block) => (
             <div
-              key={sec.id}
+              ref={block.setNodeRef}
               className="mt-10 first:mt-6"
-              style={{
-                opacity: sectionDrag === sec.id ? 0.4 : 1,
-                boxShadow: sectionDropHere
-                  ? "0 -14px 0 -12px var(--text-mid)"
-                  : undefined,
-              }}
-              onDragOver={(e) => {
-                if (sectionDrag) {
-                  e.preventDefault();
-                  const before = isUpperHalf(e)
-                    ? sec.id
-                    : (sections[sectionIndex + 1]?.id ?? null);
-                  setSectionDropBefore(before);
-                  return;
-                }
-                if (!dragTaskId) return;
-                e.preventDefault();
-                if (
-                  dropTarget?.sectionId !== sec.id ||
-                  dropTarget.beforeTaskId !== null
-                ) {
-                  setDropTarget({ sectionId: sec.id, beforeTaskId: null });
-                }
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (sectionDrag) handleSectionDrop();
-                else handleTaskDrop(sec.id);
-              }}
+              style={block.style}
             >
               {/* Section header: drag it to reorder sections */}
               <div
+                ref={block.setActivatorNodeRef}
+                {...(isRenaming ? {} : { ...block.attributes, ...block.listeners })}
                 className="flex items-center gap-3.5 pb-2.5 border-b mb-0 group/secheader"
                 style={{
                   borderColor: "var(--border)",
                   cursor: isRenaming ? undefined : "grab",
-                }}
-                draggable={!isRenaming}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/plain", sec.id);
-                  setSectionDrag(sec.id);
-                }}
-                onDragEnd={() => {
-                  setSectionDrag(null);
-                  setSectionDropBefore(undefined);
                 }}
                 title="Drag to reorder sections"
               >
@@ -754,8 +683,21 @@ export default function ListPage() {
                 </button>
               </div>
 
-              {/* Tasks */}
-              {secTasks.map((task, taskIndex) => {
+              {/* Tasks: a drop area so empty sections accept rows too */}
+              <DroppableArea
+                id={containerDndId(sec.id)}
+                data={{ type: "container", sectionId: sec.id }}
+              >
+              {(dropArea) => (
+              <div
+                ref={dropArea.setNodeRef}
+                style={{ minHeight: 8, background: dropArea.isOver ? "rgba(255,255,255,0.02)" : undefined }}
+              >
+              <SortableContext
+                items={secTasks.map((task) => taskDndId(task.id))}
+                strategy={verticalListSortingStrategy}
+              >
+              {secTasks.map((task) => {
                 const isRunning = activeEntry?.taskId === task.id;
                 const due = fmtDue(task.dueDate ?? null);
                 const tag = projectTags.find(
@@ -764,50 +706,26 @@ export default function ListPage() {
                 const milestone = milestoneFilter
                   ? null
                   : milestones.find((m) => m.id === task.milestoneId);
-                const showDropLine =
-                  isTaskDropTarget &&
-                  dropTarget?.beforeTaskId === task.id &&
-                  dragTaskId !== task.id;
                 return (
-                  <div
+                  <SortableItem
                     key={task.id}
+                    id={taskDndId(task.id)}
+                    data={{ type: "task", sectionId: sec.id }}
+                  >
+                  {(row) => (
+                  <div
+                    ref={row.setNodeRef}
+                    {...row.attributes}
+                    {...row.listeners}
                     className="flex items-start border-b min-h-11.5 cursor-pointer transition-colors group/row"
                     style={{
                       borderColor: "var(--border)",
-                      opacity:
-                        dragTaskId === task.id
-                          ? 0.25
-                          : task.status === "done"
-                            ? 0.45
-                            : 1,
-                      boxShadow: showDropLine
-                        ? "inset 0 2px 0 0 var(--text-mid)"
-                        : undefined,
-                    }}
-                    draggable
-                    onDragStart={(e) => {
-                      e.stopPropagation();
-                      e.dataTransfer.effectAllowed = "move";
-                      e.dataTransfer.setData("text/plain", task.id);
-                      setDragTaskId(task.id);
-                    }}
-                    onDragEnd={() => {
-                      setDragTaskId(null);
-                      setDropTarget(null);
-                    }}
-                    onDragOver={(e) => {
-                      if (!dragTaskId) return;
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const beforeTaskId = isUpperHalf(e)
-                        ? task.id
-                        : (secTasks[taskIndex + 1]?.id ?? null);
-                      if (
-                        dropTarget?.sectionId !== sec.id ||
-                        dropTarget.beforeTaskId !== beforeTaskId
-                      ) {
-                        setDropTarget({ sectionId: sec.id, beforeTaskId });
-                      }
+                      ...row.style,
+                      opacity: row.isDragging
+                        ? 0.35
+                        : task.status === "done"
+                          ? 0.45
+                          : 1,
                     }}
                     onClick={() => setModal({ open: true, task })}
                     onMouseEnter={(e) =>
@@ -981,15 +899,14 @@ export default function ListPage() {
                       )}
                     </div>
                   </div>
+                  )}
+                  </SortableItem>
                 );
               })}
-
-              {isTaskDropTarget && dropTarget?.beforeTaskId === null && (
-                <div
-                  className="h-0.5 rounded-full"
-                  style={{ background: "var(--text-mid)" }}
-                />
+              </SortableContext>
+              </div>
               )}
+              </DroppableArea>
 
               {/* Inline add */}
               {addingIn === sec.id && (
@@ -1072,8 +989,29 @@ export default function ListPage() {
                 <span className="text-[15px] leading-none">+</span> New Task
               </button>
             </div>
+            )}
+            </SortableItem>
           );
         })}
+        </SortableContext>
+        <DragOverlay>
+          {draggedTask ? (
+            <div
+              className="rounded-md border px-4 py-2.5 text-[12px] shadow-2xl"
+              style={{ background: "var(--surface-raised)", borderColor: "var(--border-mid)", color: "var(--text-primary)" }}
+            >
+              {draggedTask.title}
+            </div>
+          ) : draggedSection ? (
+            <div
+              className="rounded-md border px-4 py-2.5 text-[14px] font-semibold shadow-2xl"
+              style={{ background: "var(--surface-raised)", borderColor: "var(--border-mid)", color: "var(--text-primary)", fontFamily: "var(--font-display)" }}
+            >
+              {draggedSection.name}
+            </div>
+          ) : null}
+        </DragOverlay>
+        </DndContext>
 
         {/* Add section */}
         {addingSection ? (

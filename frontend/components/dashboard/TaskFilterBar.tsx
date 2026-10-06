@@ -1,5 +1,7 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select";
+
 export type FilterMode = "all" | "done";
 export type SortKey = "due" | "priority" | "created";
 
@@ -42,16 +44,16 @@ export function TaskFilterBar({
       <span className="text-[10px] tracking-[0.06em] uppercase" style={{ color: "var(--text-secondary)" }}>
         Sort:
       </span>
-      <select
+      <SelectField
         value={sortKey}
-        onChange={(e) => onSortChange(e.target.value as SortKey)}
+        onChange={(value) => onSortChange(value as SortKey)}
         className="bg-transparent border-none outline-none text-[10px] tracking-[0.04em]"
         style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}
       >
         <option value="due">Due date</option>
         <option value="priority">Priority</option>
         <option value="created">Created</option>
-      </select>
+      </SelectField>
     </div>
   );
 }

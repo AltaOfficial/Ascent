@@ -6,7 +6,7 @@ import { TasksService, type TaskFields } from '../../tasks/tasks.service';
 import { TaskStatus } from '../../tasks/entities/task.entity';
 import { ProjectsService } from '../../projects/projects.service';
 import { TimeEntriesService } from '../../time-entries/time-entries.service';
-import type { McpRequest } from '../mcp-auth.guard';
+import type { McpRequestWithUser } from '@rekog/mcp-nest';
 import { dateKey, id, summarizeTask } from './tool-utils';
 
 const status = z.enum(['todo', 'in_progress', 'blocked', 'done']);
@@ -76,9 +76,9 @@ export class TaskTools {
       limit?: number;
     },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     const tasks = await this.tasksService.findByFilter(
       userId,
       projectId === 'inbox' ? null : projectId,
@@ -104,9 +104,9 @@ export class TaskTools {
   async getTask(
     { taskId }: { taskId: string },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     const task = await this.tasksService.findOneById(taskId, userId);
     if (!task) throw new NotFoundException('Task not found');
     const [totals, subtasks] = await Promise.all([
@@ -137,8 +137,12 @@ export class TaskTools {
       'Create a task. Without projectId it goes to the inbox. Get project and section ids from list_projects.',
     parameters: z.object({ ...taskFields, title: z.string().min(1) }),
   })
-  async createTask(args: TaskArgs, _context: Context, request: McpRequest) {
-    const { userId } = request.user;
+  async createTask(
+    args: TaskArgs,
+    _context: Context,
+    request: McpRequestWithUser,
+  ) {
+    const userId = request.user.sub;
     if (args.projectId) {
       const project = await this.projectsService.findById(
         args.projectId,
@@ -158,9 +162,9 @@ export class TaskTools {
   async updateTask(
     { taskId, ...fields }: TaskArgs & { taskId: string },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     const task = await this.tasksService.update(
       taskId,
       userId,
@@ -179,9 +183,9 @@ export class TaskTools {
   async completeTask(
     { taskId }: { taskId: string },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     const active = await this.timeEntriesService.getActive(userId);
     if (active?.taskId === taskId) {
       await this.timeEntriesService.stop(active.id, userId);
@@ -201,12 +205,9 @@ export class TaskTools {
   async addSubtask(
     { taskId, title }: { taskId: string; title: string },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const task = await this.tasksService.findOneById(
-      taskId,
-      request.user.userId,
-    );
+    const task = await this.tasksService.findOneById(taskId, request.user.sub);
     if (!task) throw new NotFoundException('Task not found');
     return this.tasksService.createSubtask(taskId, title);
   }
@@ -227,12 +228,9 @@ export class TaskTools {
       completed,
     }: { taskId: string; subtaskId: string; completed: boolean },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const task = await this.tasksService.findOneById(
-      taskId,
-      request.user.userId,
-    );
+    const task = await this.tasksService.findOneById(taskId, request.user.sub);
     if (!task) throw new NotFoundException('Task not found');
     const subtask = await this.tasksService.updateSubtask(subtaskId, taskId, {
       completed,

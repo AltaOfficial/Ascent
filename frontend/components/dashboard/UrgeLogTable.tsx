@@ -11,6 +11,7 @@ import {
   type PaginationState,
 } from "@tanstack/react-table";
 import { apiFetch } from "@/lib/api";
+import { SelectField } from "@/components/ui/select";
 
 const TEXT_FIELD_MAX_LENGTH = 200;
 const PAGE_SIZE = 10;
@@ -249,11 +250,11 @@ export default function UrgeLogTable() {
                 className="w-14 rounded-[5px] px-1.5 py-1 text-[12px] outline-none"
                 style={inputStyle}
               />
-              <select
+              <SelectField
                 value={log.durationUnit}
-                onChange={(e) =>
+                onChange={(value) =>
                   updateLog(log.id, {
-                    durationUnit: e.target.value as DurationUnit,
+                    durationUnit: value as DurationUnit,
                   })
                 }
                 className="rounded-[5px] px-1 py-1 text-[11px] outline-none"
@@ -261,7 +262,7 @@ export default function UrgeLogTable() {
               >
                 <option value="sec">sec</option>
                 <option value="min">min</option>
-              </select>
+              </SelectField>
             </div>
           );
         },
@@ -455,9 +456,9 @@ export default function UrgeLogTable() {
                 border: "1px solid var(--border-mid)",
               }}
             >
-              <select
+              <SelectField
                 value={pickedRuleId}
-                onChange={(e) => setPickedRuleId(e.target.value)}
+                onChange={(value) => setPickedRuleId(value)}
                 className="text-[11px] rounded-[5px] px-2 py-1.5 outline-none"
                 style={inputStyle}
               >
@@ -466,7 +467,7 @@ export default function UrgeLogTable() {
                     {rule.name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
               <button
                 type="button"
                 onClick={addUrge}

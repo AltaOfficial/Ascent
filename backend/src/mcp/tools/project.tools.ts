@@ -4,7 +4,7 @@ import type { Context } from '@rekog/mcp-nest';
 import { z } from 'zod';
 import { ProjectsService } from '../../projects/projects.service';
 import { MilestonesService } from '../../milestones/milestones.service';
-import type { McpRequest } from '../mcp-auth.guard';
+import type { McpRequestWithUser } from '@rekog/mcp-nest';
 import { dateKey, id } from './tool-utils';
 
 @Injectable()
@@ -19,8 +19,12 @@ export class ProjectTools {
     description:
       "All projects with their folder path, plus each project's sections. Use this to find project and section ids.",
   })
-  async listProjects(_args: object, _context: Context, request: McpRequest) {
-    const { userId } = request.user;
+  async listProjects(
+    _args: object,
+    _context: Context,
+    request: McpRequestWithUser,
+  ) {
+    const userId = request.user.sub;
     const [projects, folders] = await Promise.all([
       this.projectsService.findAllByUserId(userId),
       this.projectsService.getFolders(userId),
@@ -59,9 +63,9 @@ export class ProjectTools {
   async listMilestones(
     { projectId }: { projectId: string },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    return this.milestonesService.list(projectId, request.user.userId);
+    return this.milestonesService.list(projectId, request.user.sub);
   }
 
   @Tool({
@@ -85,17 +89,13 @@ export class ProjectTools {
       description?: string;
     },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
     const project = await this.projectsService.findById(
       projectId,
-      request.user.userId,
+      request.user.sub,
     );
     if (!project) throw new NotFoundException('Project not found');
-    return this.milestonesService.create(
-      projectId,
-      request.user.userId,
-      fields,
-    );
+    return this.milestonesService.create(projectId, request.user.sub, fields);
   }
 }

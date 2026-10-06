@@ -25,7 +25,19 @@ import {
   type Milestone,
 } from "@/components/dashboard/MilestoneStrip";
 import { Flag } from "lucide-react";
-import { isLeftHalf, isUpperHalf, moveBefore, moveTask } from "@/lib/reorder";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { DroppableArea, SortableItem } from "@/components/dashboard/Sortable";
+import {
+  containerDndId,
+  sectionDndId,
+  taskDndId,
+  useSectionTaskDnd,
+} from "@/lib/useSectionTaskDnd";
 
 type Project = {
   id: string;
@@ -106,24 +118,19 @@ export default function KanbanPage() {
     open: false,
     task: null,
   });
-  const [drag, setDrag] = useState<{
-    taskId: string;
-    fromSectionId: string;
-  } | null>(null);
-  // Where a dragged task would land: before `beforeTaskId`, or at the end
-  const [dropTarget, setDropTarget] = useState<{
-    sectionId: string;
-    beforeTaskId: string | null;
-  } | null>(null);
-  // Section (column) being dragged, and the section it would land before
-  // (null = at the end, undefined = nowhere yet)
-  const [sectionDrag, setSectionDrag] = useState<string | null>(null);
-  const [sectionDropBefore, setSectionDropBefore] = useState<
-    string | null | undefined
-  >(undefined);
-
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
+
+  const dnd = useSectionTaskDnd({
+    projectId,
+    sections,
+    setSections,
+    tasks,
+    setTasks,
+  });
+  const draggedTask = tasks.find((t) => t.id === dnd.activeTaskId) ?? null;
+  const draggedSection =
+    sections.find((s) => s.id === dnd.activeSectionId) ?? null;
 
   // Add/manage sections
   const [addingSection, setAddingSection] = useState(false);
@@ -237,50 +244,6 @@ export default function KanbanPage() {
     } catch {}
     setNewTaskTitle("");
     setAddingInSection(null);
-  }
-
-  async function handleTaskDrop(sectionId: string) {
-    const current = drag;
-    const beforeTaskId =
-      dropTarget?.sectionId === sectionId ? dropTarget.beforeTaskId : null;
-    setDrag(null);
-    setDropTarget(null);
-    if (!current) return;
-    const previous = tasks;
-    const { tasks: next, sectionTaskIds } = moveTask(
-      tasks,
-      current.taskId,
-      sectionId,
-      beforeTaskId,
-    );
-    setTasks(next);
-    try {
-      await apiFetch("/tasks/reorder", {
-        method: "POST",
-        body: JSON.stringify({ projectId, sectionId, taskIds: sectionTaskIds }),
-      });
-    } catch {
-      setTasks(previous);
-    }
-  }
-
-  async function handleSectionDrop() {
-    const moving = sectionDrag;
-    const before = sectionDropBefore;
-    setSectionDrag(null);
-    setSectionDropBefore(undefined);
-    if (!moving || before === undefined) return;
-    const previous = sections;
-    const next = moveBefore(sections, moving, before);
-    setSections(next);
-    try {
-      await apiFetch(`/projects/${projectId}/sections/reorder`, {
-        method: "POST",
-        body: JSON.stringify({ sectionIds: next.map((s) => s.id) }),
-      });
-    } catch {
-      setSections(previous);
-    }
   }
 
   async function handleSaveTask(id: string, updates: Partial<Task>) {
@@ -650,611 +613,634 @@ export default function KanbanPage() {
       </div>
 
       {/* Board */}
-      <div
-        className="overflow-x-auto"
-        onDragOver={(e) => {
-          // Dropping a column past the last one puts it at the end
-          if (sectionDrag) {
-            e.preventDefault();
-            if (e.target === e.currentTarget) setSectionDropBefore(null);
-          }
-        }}
-        onDrop={(e) => {
-          if (sectionDrag && e.target === e.currentTarget) handleSectionDrop();
-        }}
-        style={{
-          padding: "8px 32px 32px",
-          display: "flex",
-          gap: 12,
-          alignItems: "flex-start",
-        }}
+      <DndContext
+        sensors={dnd.sensors}
+        collisionDetection={dnd.collisionDetection}
+          measuring={dnd.measuring}
+        {...dnd.handlers}
       >
-        {sections.length === 0 && !addingSection && (
-          <div
-            className="flex flex-col items-center justify-center gap-3 w-full h-40"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            <span className="text-[13px] tracking-[0.01em]">
-              No sections yet
-            </span>
-            <button
-              onClick={() => {
-                setAddingSection(true);
-                setTimeout(() => newSectionInputRef.current?.focus(), 0);
-              }}
-              className="text-[11px] px-3.5 py-1.5 rounded-md border tracking-[0.04em] transition-colors"
-              style={{
-                borderColor: "var(--border-mid)",
-                color: "var(--text-primary)",
-                fontFamily: "var(--font-mono)",
-                background: "none",
-              }}
-            >
-              + Add Section
-            </button>
-          </div>
-        )}
-
-        {sections.map((section, sectionIndex) => {
-          const colTasks = tasks.filter(
-            (t) =>
-              t.sectionId === section.id &&
-              (!milestoneFilter || t.milestoneId === milestoneFilter),
-          );
-          const isRenaming = renamingSectionId === section.id;
-          const isDropTarget =
-            drag !== null && dropTarget?.sectionId === section.id;
-          const showDropLineAtEnd =
-            isDropTarget && dropTarget?.beforeTaskId === null;
-          const sectionDropHere =
-            sectionDrag !== null &&
-            sectionDrag !== section.id &&
-            sectionDropBefore === section.id;
-
-          return (
+        <div
+          className="overflow-x-auto"
+          style={{
+            padding: "8px 32px 32px",
+            display: "flex",
+            gap: 12,
+            alignItems: "flex-start",
+          }}
+        >
+          {sections.length === 0 && !addingSection && (
             <div
-              key={section.id}
-              style={{
-                width: 264,
-                flexShrink: 0,
-                display: "flex",
-                flexDirection: "column",
-                opacity: sectionDrag === section.id ? 0.4 : 1,
-                boxShadow: sectionDropHere
-                  ? "-7px 0 0 -5px var(--text-mid)"
-                  : undefined,
-              }}
-              onDragOver={(e) => {
-                if (sectionDrag) {
-                  e.preventDefault();
-                  const before = isLeftHalf(e)
-                    ? section.id
-                    : (sections[sectionIndex + 1]?.id ?? null);
-                  setSectionDropBefore(before);
-                  return;
-                }
-                if (!drag) return;
-                e.preventDefault();
-                // Over empty column space: drop at the end
-                if (
-                  dropTarget?.sectionId !== section.id ||
-                  dropTarget.beforeTaskId !== null
-                ) {
-                  setDropTarget({ sectionId: section.id, beforeTaskId: null });
-                }
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (sectionDrag) handleSectionDrop();
-                else handleTaskDrop(section.id);
-              }}
+              className="flex flex-col items-center justify-center gap-3 w-full h-40"
+              style={{ color: "var(--text-secondary)" }}
             >
-              {/* Column header: drag it to reorder sections */}
-              <div
-                className="flex items-center justify-between mb-2.5 px-0.5 group/header"
-                draggable={!isRenaming}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/plain", section.id);
-                  setSectionDrag(section.id);
-                }}
-                onDragEnd={() => {
-                  setSectionDrag(null);
-                  setSectionDropBefore(undefined);
-                }}
-                style={{ cursor: isRenaming ? undefined : "grab" }}
-                title="Drag to reorder sections"
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {isRenaming ? (
-                    <input
-                      ref={renameInputRef}
-                      value={renamingValue}
-                      onChange={(e) => setRenamingValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") commitRename(section.id);
-                        if (e.key === "Escape") setRenamingSectionId(null);
-                      }}
-                      onBlur={() => commitRename(section.id)}
-                      className="text-[13px] font-semibold tracking-[-0.01em] bg-transparent border-b outline-none flex-1 min-w-0"
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        color: "var(--text-primary)",
-                        borderColor: "var(--border-mid)",
-                      }}
-                    />
-                  ) : (
-                    <span
-                      className="text-[13px] font-semibold tracking-[-0.01em] truncate cursor-text"
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        color: "var(--text-primary)",
-                      }}
-                      onClick={() => startRenaming(section)}
-                    >
-                      {section.name}
-                    </span>
-                  )}
-                  <span
-                    className="text-[11px] shrink-0"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {colTasks.length}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleDeleteSection(section.id)}
-                  className="text-[14px] w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0"
-                  style={{
-                    color: "var(--text-secondary)",
-                    background: "none",
-                    border: "none",
-                    lineHeight: 1,
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = "rgba(217,107,107,0.85)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "var(--text-secondary)")
-                  }
-                  title="Delete section"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Tasks list with dashed drop target border */}
-              <div
-                className="flex flex-col gap-1.5 pb-1 rounded-lg transition-all"
-                style={{
-                  scrollbarWidth: "none",
-                  minHeight: drag ? 40 : undefined,
-                  ...(isDropTarget
-                    ? {
-                        outline: "2px dashed var(--border-mid)",
-                        outlineOffset: "4px",
-                        background: "rgba(255,255,255,0.02)",
-                      }
-                    : {}),
-                }}
-              >
-                {colTasks.map((task, taskIndex) => {
-                  const isRunning = activeEntry?.taskId === task.id;
-                  const due = fmtDue(task.dueDate ?? null);
-                  const isDragging = drag?.taskId === task.id;
-                  const tag = projectTags.find(
-                    (t) => t.name === task.categoryTag,
-                  );
-                  const milestone = milestoneFilter
-                    ? null
-                    : milestones.find((m) => m.id === task.milestoneId);
-                  const showDropLine =
-                    isDropTarget &&
-                    dropTarget?.beforeTaskId === task.id &&
-                    !isDragging;
-
-                  return (
-                    <div key={task.id} className="flex flex-col gap-1.5">
-                    {showDropLine && (
-                      <div
-                        className="h-0.5 rounded-full mx-1"
-                        style={{ background: "var(--text-mid)" }}
-                      />
-                    )}
-                    <div
-                      draggable
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", task.id);
-                        // Let the browser capture the drag image before dimming the element
-                        const el = e.currentTarget as HTMLElement;
-                        setTimeout(() => {
-                          el.style.opacity = "0.25";
-                        }, 0);
-                        setDrag({ taskId: task.id, fromSectionId: section.id });
-                      }}
-                      onDragEnd={(e) => {
-                        (e.currentTarget as HTMLElement).style.opacity = "";
-                        setDrag(null);
-                        setDropTarget(null);
-                      }}
-                      onDragOver={(e) => {
-                        if (!drag) return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const beforeTaskId = isUpperHalf(e)
-                          ? task.id
-                          : (colTasks[taskIndex + 1]?.id ?? null);
-                        if (
-                          dropTarget?.sectionId !== section.id ||
-                          dropTarget.beforeTaskId !== beforeTaskId
-                        ) {
-                          setDropTarget({ sectionId: section.id, beforeTaskId });
-                        }
-                      }}
-                      onClick={() =>
-                        !isDragging && setModal({ open: true, task })
-                      }
-                      className="rounded-lg border px-3 py-3 cursor-pointer transition-all group/card"
-                      style={{
-                        background: "var(--surface)",
-                        borderColor: "var(--border)",
-                        opacity: task.status === "done" ? 0.55 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isDragging) {
-                          (e.currentTarget as HTMLElement).style.borderColor =
-                            "var(--border-mid)";
-                          (e.currentTarget as HTMLElement).style.background =
-                            "var(--surface-raised)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.borderColor =
-                          "var(--border)";
-                        (e.currentTarget as HTMLElement).style.background =
-                          "var(--surface)";
-                      }}
-                    >
-                      {/* Top row */}
-                      <div className="flex items-start gap-2">
-                        {/* Done checkbox */}
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleDone(task.id);
-                          }}
-                          className="w-3.5 h-3.5 border rounded-[3px] flex items-center justify-center cursor-pointer shrink-0 mt-0.5 transition-colors"
-                          style={{
-                            borderColor:
-                              task.status === "done"
-                                ? "rgba(107,187,138,0.35)"
-                                : "var(--border-mid)",
-                            background:
-                              task.status === "done"
-                                ? "rgba(107,187,138,0.12)"
-                                : "transparent",
-                          }}
-                        >
-                          {task.status === "done" && (
-                            <span
-                              style={{
-                                fontSize: 9,
-                                color: "rgba(107,187,138,0.9)",
-                              }}
-                            >
-                              ✓
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          {task.categoryTag && (
-                            <div
-                              className="inline-flex items-center text-[9px] tracking-[0.06em] uppercase px-2 py-0.5 rounded-[3px] mb-1.5 font-medium"
-                              style={{
-                                background: tag
-                                  ? tag.color + "22"
-                                  : "rgba(200,200,210,0.1)",
-                                color: tag ? tag.color : "var(--text-mid)",
-                              }}
-                            >
-                              {task.categoryTag}
-                            </div>
-                          )}
-                          <div
-                            className="text-[12px] tracking-[0.01em] leading-snug wrap-break-word"
-                            style={{
-                              color: "var(--text-primary)",
-                              textDecoration:
-                                task.status === "done"
-                                  ? "line-through"
-                                  : "none",
-                              opacity: task.status === "done" ? 0.4 : 1,
-                            }}
-                          >
-                            {task.title}
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-1 shrink-0 ml-1 pt-0.5">
-                          {task.priority === "high" && (
-                            <span
-                              className="text-[10px] tracking-[0.04em]"
-                              style={{ color: "rgba(217,107,107,0.7)" }}
-                            >
-                              High
-                            </span>
-                          )}
-                          {task.status !== "done" && due && (
-                            <span
-                              className="text-[10px] tracking-[0.03em] px-2 py-0.5 rounded-[3px] border"
-                              style={dueStyle(due.cls)}
-                            >
-                              {due.label}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Footer */}
-                      {task.status !== "done" && (
-                        <div className="flex items-center justify-between mt-2.5">
-                          <div className="flex items-center gap-2.5">
-                            {task.description && (
-                              <span
-                                className="text-[15px] leading-none"
-                                style={{
-                                  color: "var(--text-secondary)",
-                                  opacity: 0.45,
-                                }}
-                              >
-                                ≡
-                              </span>
-                            )}
-                            {fmtMinutes(task.estimatedMinutes) && (
-                              <span
-                                className="text-[11px] flex items-center gap-1"
-                                style={{
-                                  color: "var(--text-secondary)",
-                                  fontFamily: "var(--font-mono)",
-                                  opacity: 0.55,
-                                }}
-                              >
-                                ⏱ {fmtMinutes(task.estimatedMinutes)}
-                              </span>
-                            )}
-                            {(task.subtaskCount ?? 0) > 0 && (
-                              <span
-                                className="text-[11px] flex items-center gap-1"
-                                style={{
-                                  color: "var(--text-secondary)",
-                                  fontFamily: "var(--font-mono)",
-                                  opacity: 0.6,
-                                }}
-                              >
-                                ◻ {task.subtaskCompletedCount ?? 0}/
-                                {task.subtaskCount}
-                              </span>
-                            )}
-                          </div>
-                          <div
-                            className="opacity-0 group-hover/card:opacity-100 transition-opacity"
-                            style={{ ...(isRunning ? { opacity: 1 } : {}) }}
-                          >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStartTimer(task.id);
-                              }}
-                              className="flex items-center gap-1 text-[10px] tracking-[0.04em] px-2 py-0.5 rounded-sm border transition-all"
-                              style={{
-                                fontFamily: "var(--font-mono)",
-                                background: isRunning
-                                  ? "rgba(107,187,138,0.08)"
-                                  : "none",
-                                borderColor: isRunning
-                                  ? "rgba(107,187,138,0.45)"
-                                  : "var(--border)",
-                                color: isRunning
-                                  ? "rgba(107,187,138,0.9)"
-                                  : "var(--text-secondary)",
-                              }}
-                            >
-                              {isRunning ? "● Running" : "▶ Start"}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {milestone && (
-                        <div
-                          className="mt-2 flex items-center gap-1.5 text-[10px] tracking-[0.03em] min-w-0"
-                          style={{
-                            color: "var(--text-secondary)",
-                            fontFamily: "var(--font-mono)",
-                          }}
-                        >
-                          <Flag size={10} className="shrink-0" aria-hidden />
-                          <span className="truncate">{milestone.name}</span>
-                        </div>
-                      )}
-                    </div>
-                    </div>
-                  );
-                })}
-
-                {showDropLineAtEnd && (
-                  <div
-                    className="h-0.5 rounded-full mx-1"
-                    style={{ background: "var(--text-mid)" }}
-                  />
-                )}
-
-                {/* Inline add */}
-                {addingInSection === section.id && (
-                  <div
-                    className="rounded-lg border px-3 py-2.5"
-                    style={{
-                      background: "var(--surface)",
-                      borderColor: "var(--border-mid)",
-                    }}
-                  >
-                    <input
-                      autoFocus
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleAddTask(section.id);
-                        if (e.key === "Escape") {
-                          setAddingInSection(null);
-                          setNewTaskTitle("");
-                        }
-                      }}
-                      placeholder="Task name..."
-                      className="w-full bg-transparent border-none outline-none text-[12px] tracking-[0.01em]"
-                      style={{
-                        color: "var(--text-primary)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    />
-                    <div className="flex justify-end gap-1.5 mt-2">
-                      <button
-                        onClick={() => {
-                          setAddingInSection(null);
-                          setNewTaskTitle("");
-                        }}
-                        className="text-[10px] px-2.5 py-1 rounded-[5px] border"
-                        style={{
-                          color: "var(--text-secondary)",
-                          borderColor: "var(--border)",
-                          fontFamily: "var(--font-mono)",
-                          background: "none",
-                        }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleAddTask(section.id)}
-                        className="text-[10px] px-2.5 py-1 rounded-[5px] hover:opacity-80"
-                        style={{
-                          background: "var(--text-primary)",
-                          color: "var(--bg)",
-                          border: "none",
-                          fontFamily: "var(--font-mono)",
-                        }}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Add task button */}
+              <span className="text-[13px] tracking-[0.01em]">
+                No sections yet
+              </span>
               <button
                 onClick={() => {
-                  setAddingInSection(section.id);
-                  setNewTaskTitle("");
+                  setAddingSection(true);
+                  setTimeout(() => newSectionInputRef.current?.focus(), 0);
                 }}
-                className="flex items-center gap-1.75 text-[12px] tracking-[0.02em] px-0.5 py-2.25 w-full mt-1 rounded-md border-none bg-transparent transition-colors"
-                style={{ color: "var(--text-secondary)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color = "var(--text-mid)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "var(--text-secondary)")
-                }
-              >
-                <span className="text-[14px] leading-none">+</span> Add Task
-              </button>
-            </div>
-          );
-        })}
-
-        {/* Add section */}
-        {addingSection ? (
-          <div style={{ width: 264, flexShrink: 0 }}>
-            <input
-              ref={newSectionInputRef}
-              value={newSectionName}
-              onChange={(e) => setNewSectionName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAddSection();
-                if (e.key === "Escape") {
-                  setAddingSection(false);
-                  setNewSectionName("");
-                }
-              }}
-              onBlur={() => {
-                if (!newSectionName.trim()) setAddingSection(false);
-              }}
-              placeholder="Section name..."
-              className="w-full text-[13px] font-semibold tracking-[-0.01em] bg-transparent border-b outline-none px-0.5 pb-1"
-              style={{
-                fontFamily: "var(--font-display)",
-                color: "var(--text-primary)",
-                borderColor: "var(--border-mid)",
-              }}
-            />
-            <div className="flex gap-1.5 mt-2">
-              <button
-                onClick={handleAddSection}
-                className="text-[10px] px-2.5 py-1 rounded-[5px] hover:opacity-80"
+                className="text-[11px] px-3.5 py-1.5 rounded-md border tracking-[0.04em] transition-colors"
                 style={{
-                  background: "var(--text-primary)",
-                  color: "var(--bg)",
-                  border: "none",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                Add
-              </button>
-              <button
-                onClick={() => {
-                  setAddingSection(false);
-                  setNewSectionName("");
-                }}
-                className="text-[10px] px-2.5 py-1 rounded-[5px] border"
-                style={{
-                  color: "var(--text-secondary)",
-                  borderColor: "var(--border)",
+                  borderColor: "var(--border-mid)",
+                  color: "var(--text-primary)",
                   fontFamily: "var(--font-mono)",
                   background: "none",
                 }}
               >
-                Cancel
+                + Add Section
               </button>
             </div>
-          </div>
-        ) : (
-          sections.length > 0 && (
-            <button
-              onClick={() => {
-                setAddingSection(true);
-                setTimeout(() => newSectionInputRef.current?.focus(), 0);
-              }}
-              className="flex items-center gap-1.5 text-[12px] tracking-[0.02em] h-9 px-3 rounded-lg border shrink-0 transition-colors self-start"
+          )}
+
+          <SortableContext
+            items={sections.map((section) => sectionDndId(section.id))}
+            strategy={horizontalListSortingStrategy}
+          >
+            {sections.map((section) => {
+              const colTasks = tasks.filter(
+                (t) =>
+                  t.sectionId === section.id &&
+                  (!milestoneFilter || t.milestoneId === milestoneFilter),
+              );
+              const isRenaming = renamingSectionId === section.id;
+
+              return (
+                <SortableItem
+                  key={section.id}
+                  id={sectionDndId(section.id)}
+                  data={{ type: "section" }}
+                >
+                  {(column) => (
+                    <div
+                      ref={column.setNodeRef}
+                      style={{
+                        width: 264,
+                        flexShrink: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        ...column.style,
+                      }}
+                    >
+                      {/* Column header: drag it to reorder sections */}
+                      <div
+                        ref={column.setActivatorNodeRef}
+                        {...(isRenaming
+                          ? {}
+                          : { ...column.attributes, ...column.listeners })}
+                        className="flex items-center justify-between mb-2.5 px-0.5 group/header"
+                        style={{ cursor: isRenaming ? undefined : "grab" }}
+                        title="Drag to reorder sections"
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {isRenaming ? (
+                            <input
+                              ref={renameInputRef}
+                              value={renamingValue}
+                              onChange={(e) => setRenamingValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitRename(section.id);
+                                if (e.key === "Escape")
+                                  setRenamingSectionId(null);
+                              }}
+                              onBlur={() => commitRename(section.id)}
+                              className="text-[13px] font-semibold tracking-[-0.01em] bg-transparent border-b outline-none flex-1 min-w-0"
+                              style={{
+                                fontFamily: "var(--font-display)",
+                                color: "var(--text-primary)",
+                                borderColor: "var(--border-mid)",
+                              }}
+                            />
+                          ) : (
+                            <span
+                              className="text-[13px] font-semibold tracking-[-0.01em] truncate cursor-text"
+                              style={{
+                                fontFamily: "var(--font-display)",
+                                color: "var(--text-primary)",
+                              }}
+                              onClick={() => startRenaming(section)}
+                            >
+                              {section.name}
+                            </span>
+                          )}
+                          <span
+                            className="text-[11px] shrink-0"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            {colTasks.length}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteSection(section.id)}
+                          className="text-[14px] w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover/header:opacity-100 transition-opacity shrink-0"
+                          style={{
+                            color: "var(--text-secondary)",
+                            background: "none",
+                            border: "none",
+                            lineHeight: 1,
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.color =
+                              "rgba(217,107,107,0.85)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.color =
+                              "var(--text-secondary)")
+                          }
+                          title="Delete section"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      {/* Tasks: a drop area so empty columns accept cards too */}
+                      <DroppableArea
+                        id={containerDndId(section.id)}
+                        data={{ type: "container", sectionId: section.id }}
+                      >
+                        {(dropArea) => (
+                          <div
+                            ref={dropArea.setNodeRef}
+                            className="flex flex-col gap-1.5 pb-1 rounded-lg transition-colors"
+                            style={{
+                              scrollbarWidth: "none",
+                              minHeight: 40,
+                              background: dropArea.isOver
+                                ? "rgba(255,255,255,0.02)"
+                                : undefined,
+                            }}
+                          >
+                            <SortableContext
+                              items={colTasks.map((task) => taskDndId(task.id))}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              {colTasks.map((task) => {
+                                const isRunning =
+                                  activeEntry?.taskId === task.id;
+                                const due = fmtDue(task.dueDate ?? null);
+                                const tag = projectTags.find(
+                                  (t) => t.name === task.categoryTag,
+                                );
+                                const milestone = milestoneFilter
+                                  ? null
+                                  : milestones.find(
+                                      (m) => m.id === task.milestoneId,
+                                    );
+
+                                return (
+                                  <SortableItem
+                                    key={task.id}
+                                    id={taskDndId(task.id)}
+                                    data={{
+                                      type: "task",
+                                      sectionId: section.id,
+                                    }}
+                                  >
+                                    {(card) => (
+                                      <div
+                                        ref={card.setNodeRef}
+                                        {...card.attributes}
+                                        {...card.listeners}
+                                        onClick={() =>
+                                          setModal({ open: true, task })
+                                        }
+                                        className="rounded-lg border px-3 py-3 cursor-pointer group/card"
+                                        style={{
+                                          background: "var(--surface)",
+                                          borderColor: "var(--border)",
+                                          ...card.style,
+                                          opacity: card.isDragging
+                                            ? 0.35
+                                            : task.status === "done"
+                                              ? 0.55
+                                              : 1,
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          if (!card.isDragging) {
+                                            (
+                                              e.currentTarget as HTMLElement
+                                            ).style.borderColor =
+                                              "var(--border-mid)";
+                                            (
+                                              e.currentTarget as HTMLElement
+                                            ).style.background =
+                                              "var(--surface-raised)";
+                                          }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          (
+                                            e.currentTarget as HTMLElement
+                                          ).style.borderColor = "var(--border)";
+                                          (
+                                            e.currentTarget as HTMLElement
+                                          ).style.background = "var(--surface)";
+                                        }}
+                                      >
+                                        {/* Top row */}
+                                        <div className="flex items-start gap-2">
+                                          {/* Done checkbox */}
+                                          <div
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleToggleDone(task.id);
+                                            }}
+                                            className="w-3.5 h-3.5 border rounded-[3px] flex items-center justify-center cursor-pointer shrink-0 mt-0.5 transition-colors"
+                                            style={{
+                                              borderColor:
+                                                task.status === "done"
+                                                  ? "rgba(107,187,138,0.35)"
+                                                  : "var(--border-mid)",
+                                              background:
+                                                task.status === "done"
+                                                  ? "rgba(107,187,138,0.12)"
+                                                  : "transparent",
+                                            }}
+                                          >
+                                            {task.status === "done" && (
+                                              <span
+                                                style={{
+                                                  fontSize: 9,
+                                                  color:
+                                                    "rgba(107,187,138,0.9)",
+                                                }}
+                                              >
+                                                ✓
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          <div className="flex-1 min-w-0">
+                                            {task.categoryTag && (
+                                              <div
+                                                className="inline-flex items-center text-[9px] tracking-[0.06em] uppercase px-2 py-0.5 rounded-[3px] mb-1.5 font-medium"
+                                                style={{
+                                                  background: tag
+                                                    ? tag.color + "22"
+                                                    : "rgba(200,200,210,0.1)",
+                                                  color: tag
+                                                    ? tag.color
+                                                    : "var(--text-mid)",
+                                                }}
+                                              >
+                                                {task.categoryTag}
+                                              </div>
+                                            )}
+                                            <div
+                                              className="text-[12px] tracking-[0.01em] leading-snug wrap-break-word"
+                                              style={{
+                                                color: "var(--text-primary)",
+                                                textDecoration:
+                                                  task.status === "done"
+                                                    ? "line-through"
+                                                    : "none",
+                                                opacity:
+                                                  task.status === "done"
+                                                    ? 0.4
+                                                    : 1,
+                                              }}
+                                            >
+                                              {task.title}
+                                            </div>
+                                          </div>
+
+                                          <div className="flex items-start gap-1 shrink-0 ml-1 pt-0.5">
+                                            {task.priority === "high" && (
+                                              <span
+                                                className="text-[10px] tracking-[0.04em]"
+                                                style={{
+                                                  color:
+                                                    "rgba(217,107,107,0.7)",
+                                                }}
+                                              >
+                                                High
+                                              </span>
+                                            )}
+                                            {task.status !== "done" && due && (
+                                              <span
+                                                className="text-[10px] tracking-[0.03em] px-2 py-0.5 rounded-[3px] border"
+                                                style={dueStyle(due.cls)}
+                                              >
+                                                {due.label}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Footer */}
+                                        {task.status !== "done" && (
+                                          <div className="flex items-center justify-between mt-2.5">
+                                            <div className="flex items-center gap-2.5">
+                                              {task.description && (
+                                                <span
+                                                  className="text-[15px] leading-none"
+                                                  style={{
+                                                    color:
+                                                      "var(--text-secondary)",
+                                                    opacity: 0.45,
+                                                  }}
+                                                >
+                                                  ≡
+                                                </span>
+                                              )}
+                                              {fmtMinutes(
+                                                task.estimatedMinutes,
+                                              ) && (
+                                                <span
+                                                  className="text-[11px] flex items-center gap-1"
+                                                  style={{
+                                                    color:
+                                                      "var(--text-secondary)",
+                                                    fontFamily:
+                                                      "var(--font-mono)",
+                                                    opacity: 0.55,
+                                                  }}
+                                                >
+                                                  ⏱{" "}
+                                                  {fmtMinutes(
+                                                    task.estimatedMinutes,
+                                                  )}
+                                                </span>
+                                              )}
+                                              {(task.subtaskCount ?? 0) > 0 && (
+                                                <span
+                                                  className="text-[11px] flex items-center gap-1"
+                                                  style={{
+                                                    color:
+                                                      "var(--text-secondary)",
+                                                    fontFamily:
+                                                      "var(--font-mono)",
+                                                    opacity: 0.6,
+                                                  }}
+                                                >
+                                                  ◻{" "}
+                                                  {task.subtaskCompletedCount ??
+                                                    0}
+                                                  /{task.subtaskCount}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div
+                                              className="opacity-0 group-hover/card:opacity-100 transition-opacity"
+                                              style={{
+                                                ...(isRunning
+                                                  ? { opacity: 1 }
+                                                  : {}),
+                                              }}
+                                            >
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleStartTimer(task.id);
+                                                }}
+                                                className="flex items-center gap-1 text-[10px] tracking-[0.04em] px-2 py-0.5 rounded-sm border transition-all"
+                                                style={{
+                                                  fontFamily:
+                                                    "var(--font-mono)",
+                                                  background: isRunning
+                                                    ? "rgba(107,187,138,0.08)"
+                                                    : "none",
+                                                  borderColor: isRunning
+                                                    ? "rgba(107,187,138,0.45)"
+                                                    : "var(--border)",
+                                                  color: isRunning
+                                                    ? "rgba(107,187,138,0.9)"
+                                                    : "var(--text-secondary)",
+                                                }}
+                                              >
+                                                {isRunning
+                                                  ? "● Running"
+                                                  : "▶ Start"}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
+                                        {milestone && (
+                                          <div
+                                            className="mt-2 flex items-center gap-1.5 text-[10px] tracking-[0.03em] min-w-0"
+                                            style={{
+                                              color: "var(--text-secondary)",
+                                              fontFamily: "var(--font-mono)",
+                                            }}
+                                          >
+                                            <Flag
+                                              size={10}
+                                              className="shrink-0"
+                                              aria-hidden
+                                            />
+                                            <span className="truncate">
+                                              {milestone.name}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </SortableItem>
+                                );
+                              })}
+                            </SortableContext>
+
+                            {/* Inline add */}
+                            {addingInSection === section.id && (
+                              <div
+                                className="rounded-lg border px-3 py-2.5"
+                                style={{
+                                  background: "var(--surface)",
+                                  borderColor: "var(--border-mid)",
+                                }}
+                              >
+                                <input
+                                  autoFocus
+                                  value={newTaskTitle}
+                                  onChange={(e) =>
+                                    setNewTaskTitle(e.target.value)
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      handleAddTask(section.id);
+                                    if (e.key === "Escape") {
+                                      setAddingInSection(null);
+                                      setNewTaskTitle("");
+                                    }
+                                  }}
+                                  placeholder="Task name..."
+                                  className="w-full bg-transparent border-none outline-none text-[12px] tracking-[0.01em]"
+                                  style={{
+                                    color: "var(--text-primary)",
+                                    fontFamily: "var(--font-mono)",
+                                  }}
+                                />
+                                <div className="flex justify-end gap-1.5 mt-2">
+                                  <button
+                                    onClick={() => {
+                                      setAddingInSection(null);
+                                      setNewTaskTitle("");
+                                    }}
+                                    className="text-[10px] px-2.5 py-1 rounded-[5px] border"
+                                    style={{
+                                      color: "var(--text-secondary)",
+                                      borderColor: "var(--border)",
+                                      fontFamily: "var(--font-mono)",
+                                      background: "none",
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleAddTask(section.id)}
+                                    className="text-[10px] px-2.5 py-1 rounded-[5px] hover:opacity-80"
+                                    style={{
+                                      background: "var(--text-primary)",
+                                      color: "var(--bg)",
+                                      border: "none",
+                                      fontFamily: "var(--font-mono)",
+                                    }}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </DroppableArea>
+
+                      {/* Add task button */}
+                      <button
+                        onClick={() => {
+                          setAddingInSection(section.id);
+                          setNewTaskTitle("");
+                        }}
+                        className="flex items-center gap-1.75 text-[12px] tracking-[0.02em] px-0.5 py-2.25 w-full mt-1 rounded-md border-none bg-transparent transition-colors"
+                        style={{ color: "var(--text-secondary)" }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.color = "var(--text-mid)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.color =
+                            "var(--text-secondary)")
+                        }
+                      >
+                        <span className="text-[14px] leading-none">+</span> Add
+                        Task
+                      </button>
+                    </div>
+                  )}
+                </SortableItem>
+              );
+            })}
+          </SortableContext>
+
+          {/* Add section */}
+          {addingSection ? (
+            <div style={{ width: 264, flexShrink: 0 }}>
+              <input
+                ref={newSectionInputRef}
+                value={newSectionName}
+                onChange={(e) => setNewSectionName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddSection();
+                  if (e.key === "Escape") {
+                    setAddingSection(false);
+                    setNewSectionName("");
+                  }
+                }}
+                onBlur={() => {
+                  if (!newSectionName.trim()) setAddingSection(false);
+                }}
+                placeholder="Section name..."
+                className="w-full text-[13px] font-semibold tracking-[-0.01em] bg-transparent border-b outline-none px-0.5 pb-1"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  color: "var(--text-primary)",
+                  borderColor: "var(--border-mid)",
+                }}
+              />
+              <div className="flex gap-1.5 mt-2">
+                <button
+                  onClick={handleAddSection}
+                  className="text-[10px] px-2.5 py-1 rounded-[5px] hover:opacity-80"
+                  style={{
+                    background: "var(--text-primary)",
+                    color: "var(--bg)",
+                    border: "none",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  Add
+                </button>
+                <button
+                  onClick={() => {
+                    setAddingSection(false);
+                    setNewSectionName("");
+                  }}
+                  className="text-[10px] px-2.5 py-1 rounded-[5px] border"
+                  style={{
+                    color: "var(--text-secondary)",
+                    borderColor: "var(--border)",
+                    fontFamily: "var(--font-mono)",
+                    background: "none",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            sections.length > 0 && (
+              <button
+                onClick={() => {
+                  setAddingSection(true);
+                  setTimeout(() => newSectionInputRef.current?.focus(), 0);
+                }}
+                className="flex items-center gap-1.5 text-[12px] tracking-[0.02em] h-9 px-3 rounded-lg border shrink-0 transition-colors self-start"
+                style={{
+                  color: "var(--text-secondary)",
+                  borderColor: "var(--border)",
+                  background: "none",
+                  fontFamily: "var(--font-mono)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "var(--text-primary)";
+                  e.currentTarget.style.borderColor = "var(--border-mid)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "var(--text-secondary)";
+                  e.currentTarget.style.borderColor = "var(--border)";
+                }}
+              >
+                + Section
+              </button>
+            )
+          )}
+        </div>
+        <DragOverlay>
+          {draggedTask ? (
+            <div
+              className="rounded-lg border px-3 py-3 text-[12px] w-66 shadow-2xl"
               style={{
-                color: "var(--text-secondary)",
-                borderColor: "var(--border)",
-                background: "none",
-                fontFamily: "var(--font-mono)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "var(--text-primary)";
-                e.currentTarget.style.borderColor = "var(--border-mid)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "var(--text-secondary)";
-                e.currentTarget.style.borderColor = "var(--border)";
+                background: "var(--surface-raised)",
+                borderColor: "var(--border-mid)",
+                color: "var(--text-primary)",
               }}
             >
-              + Section
-            </button>
-          )
-        )}
-      </div>
+              {draggedTask.title}
+            </div>
+          ) : draggedSection ? (
+            <div
+              className="rounded-lg border px-3 py-2.5 text-[13px] font-semibold w-66 shadow-2xl"
+              style={{
+                background: "var(--surface-raised)",
+                borderColor: "var(--border-mid)",
+                color: "var(--text-primary)",
+                fontFamily: "var(--font-display)",
+              }}
+            >
+              {draggedSection.name}
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <TaskModal
         state={modal}

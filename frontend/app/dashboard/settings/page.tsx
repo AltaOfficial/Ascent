@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
-import { ApiTokensSection } from "@/components/dashboard/ApiTokensSection";
+import { McpConnectionSection } from "@/components/dashboard/McpConnectionSection";
+import { SelectField } from "@/components/ui/select";
 
 const TIMEZONES = [
   "UTC",
@@ -103,16 +104,16 @@ export default function SettingsPage() {
                     Used for calendar and compliance windows
                   </div>
                 </div>
-                <select
+                <SelectField
                   value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
+                  onChange={(value) => setTimezone(value)}
                   className="rounded-md border px-2.5 py-1.5 text-[11px] outline-none shrink-0"
                   style={{ ...fieldStyle, width: 210 }}
                 >
                   {TIMEZONES.map((tz) => (
                     <option key={tz} value={tz}>{tz}</option>
                   ))}
-                </select>
+                </SelectField>
               </div>
 
               <div className="flex items-center justify-between gap-4">
@@ -121,15 +122,15 @@ export default function SettingsPage() {
                     Week starts on
                   </div>
                 </div>
-                <select
+                <SelectField
                   value={weekStart}
-                  onChange={(e) => setWeekStart(e.target.value)}
+                  onChange={(value) => setWeekStart(value)}
                   className="rounded-md border px-2.5 py-1.5 text-[11px] outline-none shrink-0"
                   style={{ ...fieldStyle, width: 210 }}
                 >
                   <option value="monday">Monday</option>
                   <option value="sunday">Sunday</option>
-                </select>
+                </SelectField>
               </div>
             </div>
           </section>
@@ -150,7 +151,7 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          <ApiTokensSection />
+          <McpConnectionSection />
         </div>
       </div>
     </div>

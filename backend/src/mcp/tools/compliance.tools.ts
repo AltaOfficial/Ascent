@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { ComplianceService } from '../../compliance/compliance.service';
 import { UsersService } from '../../users/users.service';
 import { dateKeyInTz } from '../../common/dates';
-import type { McpRequest } from '../mcp-auth.guard';
+import type { McpRequestWithUser } from '@rekog/mcp-nest';
 import { dateKey, id } from './tool-utils';
 
 @Injectable()
@@ -36,9 +36,9 @@ export class ComplianceTools {
   async getCompliance(
     { date }: { date?: string },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     const day = date ?? (await this.today(userId));
     const [rules, entries] = await Promise.all([
       this.complianceService.getRules(userId),
@@ -71,9 +71,9 @@ export class ComplianceTools {
       date,
     }: { ruleId: string; checked: boolean; date?: string },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     await this.assertRule(userId, ruleId);
     const day = date ?? (await this.today(userId));
     await this.complianceService.upsertEntry(userId, ruleId, day, checked);
@@ -108,9 +108,9 @@ export class ComplianceTools {
       reflection?: string;
     },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     await this.assertRule(userId, ruleId);
     const log = await this.complianceService.createUrgeLog(
       userId,

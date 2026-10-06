@@ -24,7 +24,11 @@ export default function LoginPage() {
         body: JSON.stringify({ username: email, password }),
       });
       setTokenCookie(access_token);
-      router.push("/dashboard");
+      // Return to where sign-in was requested (e.g. an OAuth consent page).
+      // Only same-site paths are allowed, never "//host" or full URLs.
+      const next = new URLSearchParams(window.location.search).get("next");
+      const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+      router.push(safeNext ?? "/dashboard");
     } catch {
       setError("Incorrect email or password. Try again.");
     } finally {

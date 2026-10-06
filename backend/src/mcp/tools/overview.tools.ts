@@ -6,7 +6,7 @@ import { AnalyticsService } from '../../analytics/analytics.service';
 import { TimeEntriesService } from '../../time-entries/time-entries.service';
 import { ComplianceService } from '../../compliance/compliance.service';
 import { TasksService } from '../../tasks/tasks.service';
-import type { McpRequest } from '../mcp-auth.guard';
+import type { McpRequestWithUser } from '@rekog/mcp-nest';
 
 @Injectable()
 export class OverviewTools {
@@ -23,8 +23,12 @@ export class OverviewTools {
     description:
       "Today's snapshot: date, rank, recent deep-work hours, high-priority share, active timer and compliance for today. Start here.",
   })
-  async getOverview(_args: object, _context: Context, request: McpRequest) {
-    const { userId } = request.user;
+  async getOverview(
+    _args: object,
+    _context: Context,
+    request: McpRequestWithUser,
+  ) {
+    const userId = request.user.sub;
     const [rank, analytics, active, rules] = await Promise.all([
       this.rankingService.calculateRank(userId),
       this.analyticsService.getSummary(userId),
@@ -73,8 +77,8 @@ export class OverviewTools {
     description:
       'Full rank breakdown for the current 90-day cycle, including per-day hours, compliance and score.',
   })
-  async getRank(_args: object, _context: Context, request: McpRequest) {
-    return this.rankingService.calculateRank(request.user.userId);
+  async getRank(_args: object, _context: Context, request: McpRequestWithUser) {
+    return this.rankingService.calculateRank(request.user.sub);
   }
 
   @Tool({
@@ -82,7 +86,11 @@ export class OverviewTools {
     description:
       'Analytics summary: 90 days of daily hours, month comparison, weekly allocation by project, high-priority share, session stats and estimation accuracy.',
   })
-  async getAnalytics(_args: object, _context: Context, request: McpRequest) {
-    return this.analyticsService.getSummary(request.user.userId);
+  async getAnalytics(
+    _args: object,
+    _context: Context,
+    request: McpRequestWithUser,
+  ) {
+    return this.analyticsService.getSummary(request.user.sub);
   }
 }

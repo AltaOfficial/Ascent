@@ -25,6 +25,16 @@
   --font-display: var(--font-syne);
   --font-serif:   var(--font-fraunces);
   --font-mono:    var(--font-dm-mono);
+
+  /* shadcn/ui tokens (components/ui) mapped onto the Ascent palette */
+  --color-background:         var(--surface-raised);
+  --color-foreground:         var(--text-primary);
+  --color-popover:            var(--surface);
+  --color-popover-foreground: var(--text-primary);
+  --color-input:              var(--border);
+  --color-ring:               var(--border-mid);
+  --color-muted:              var(--border);
+  --color-muted-foreground:   var(--text-secondary);
 }
 
 @keyframes blink {
@@ -54,26 +64,9 @@ button, [role="button"], select {
   cursor: pointer;
 }
 
-/* Native form controls: dark pickers, a chevron that matches the UI */
+/* Native form controls (date pickers etc.) follow the dark theme */
 :root {
   color-scheme: dark;
-}
-
-select {
-  appearance: none;
-  -webkit-appearance: none;
-  /* !important so inline `background:` shorthands don't wipe the chevron */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%239a9aaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: right 10px center !important;
-  background-size: 14px 14px !important;
-  padding-right: 32px !important;
-  text-overflow: ellipsis;
-}
-
-select option {
-  background-color: var(--surface);
-  color: var(--text-primary);
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
@@ -96,3 +89,15 @@ textarea::placeholder {
   to { transform: translateX(-100%); }
 }
 
+
+/* Typing caret after the last block of a streaming advisor reply */
+.advisor-streaming > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  margin-left: 4px;
+  vertical-align: -2px;
+  background: var(--text-mid);
+  animation: blink 1s step-end infinite;
+}

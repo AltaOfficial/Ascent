@@ -12,6 +12,7 @@ import {
   TYPE_COLOR, buildDateKey,
 } from "@/components/dashboard/calendarTypes";
 import { apiFetch } from "@/lib/api";
+import { SelectField } from "@/components/ui/select";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const MONTH_NAMES = [
@@ -518,16 +519,16 @@ export default function CalendarPage() {
                       />
                     </FormField>
                     <FormField label="Priority">
-                      <select
+                      <SelectField
                         value={formPriority}
-                        onChange={(e) => setFormPriority(e.target.value as Priority)}
+                        onChange={(value) => setFormPriority(value as Priority)}
                         className="w-full rounded-[7px] border px-3 py-2.25 text-[13px] outline-none transition-colors"
                         style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
                       >
                         <option value="low">Low</option>
                         <option value="mid">Mid</option>
                         <option value="high">High</option>
-                      </select>
+                      </SelectField>
                     </FormField>
                   </div>
                 )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Tree, type NodeApi, type NodeRendererProps, type TreeApi } from "react-arborist";
 import {
   ChevronRight,
   Ellipsis,
@@ -11,7 +12,7 @@ import {
   Plus,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { isUpperHalf } from "@/lib/reorder";
+import { SelectField } from "@/components/ui/select";
 
 const COLORS = [
   "#d96b6b", "#d9896b", "#d9c46b",
@@ -36,21 +37,18 @@ type Folder = {
   collapsed: boolean;
 };
 
-type DragItem = { type: "project" | "folder"; id: string };
+// Tree rows for react-arborist: folders have children, projects are leaves
+type TreeRow =
+  | { id: string; kind: "folder"; folder: Folder; children: TreeRow[] }
+  | { id: string; kind: "project"; project: Project };
 
-// Where the dragged item would land
-type DropHint =
-  | { kind: "into"; folderId: string | null }
-  | { kind: "before" | "after"; type: "project" | "folder"; id: string };
+const folderRowId = (id: string) => `f:${id}`;
+const projectRowId = (id: string) => `p:${id}`;
+const ROW_HEIGHT = 48;
 
 type CtxMenu =
   | { type: "project"; id: string; x: number; y: number }
   | { type: "folder"; id: string; x: number; y: number };
-
-// Each nesting level shifts a row right by one column (chevron slot + gap)
-const INDENT = 24;
-// x of the vertical guide line for a level, centred under that level's chevron
-const guideX = (level: number) => 8 + level * INDENT + 7;
 
 function byPosition<T extends { position: number }>(a: T, b: T) {
   return a.position - b.position;
@@ -85,12 +83,9 @@ export default function ProjectsPage() {
   const [fName, setFName] = useState("");
   const [fFolderId, setFFolderId] = useState<string>("");
 
-  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const renameInputRef = useRef<HTMLInputElement>(null);
-
-  const [dragItem, setDragItem] = useState<DragItem | null>(null);
-  const [dropHint, setDropHint] = useState<DropHint | null>(null);
+  const treeRef = useRef<TreeApi<TreeRow> | null>(null);
+  // Folder to put into rename mode once the tree has rendered it
+  const pendingRenameRef = useRef<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -105,9 +100,15 @@ export default function ProjectsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Runs after every render: a new folder only exists in the tree after its row renders
   useEffect(() => {
-    if (renamingFolderId) renameInputRef.current?.select();
-  }, [renamingFolderId]);
+    const id = pendingRenameRef.current;
+    const node = id ? treeRef.current?.get(folderRowId(id)) : null;
+    if (node) {
+      pendingRenameRef.current = null;
+      node.edit();
+    }
+  });
 
   // ── Folder paths for the project modal ────────────────────────────────
 
@@ -182,26 +183,23 @@ export default function ProjectsPage() {
       });
       setFolders((prev) => [...prev, created]);
       if (parentId) expandFolder(parentId);
-      setRenamingFolderId(created.id);
-      setRenameValue(created.name);
+      pendingRenameRef.current = created.id;
     } catch {}
   }
 
   function startRename(folder: Folder) {
+    pendingRenameRef.current = folder.id;
     setCtxMenu(null);
-    setRenamingFolderId(folder.id);
-    setRenameValue(folder.name);
   }
 
-  async function commitRename() {
-    const id = renamingFolderId;
-    setRenamingFolderId(null);
-    if (!id || !renameValue.trim()) return;
-    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name: renameValue.trim() } : f)));
+  async function renameFolder(id: string, name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name: trimmed } : f)));
     try {
       await apiFetch(`/project-folders/${id}/update`, {
         method: "POST",
-        body: JSON.stringify({ name: renameValue.trim() }),
+        body: JSON.stringify({ name: trimmed }),
       });
     } catch {}
   }
@@ -233,197 +231,93 @@ export default function ProjectsPage() {
     } catch {}
   }
 
-  // ── Drag and drop ─────────────────────────────────────────────────────
+  // ── Tree (react-arborist) ─────────────────────────────────────────────
 
-  function canDropFolderInto(folderId: string, targetParentId: string | null) {
-    if (!targetParentId) return true;
-    return !subtreeIds(folders, folderId).has(targetParentId);
+  function buildRows(parentId: string | null): TreeRow[] {
+    return [
+      ...folders
+        .filter((f) => f.parentId === parentId)
+        .sort(byPosition)
+        .map((folder): TreeRow => ({
+          id: folderRowId(folder.id),
+          kind: "folder",
+          folder,
+          children: buildRows(folder.id),
+        })),
+      ...projects
+        .filter((p) => p.folderId === parentId)
+        .sort(byPosition)
+        .map((project): TreeRow => ({ id: projectRowId(project.id), kind: "project", project })),
+    ];
   }
 
-  function onRowDragOver(
-    e: React.DragEvent<HTMLElement>,
-    target: { type: "project" | "folder"; id: string },
-  ) {
-    if (!dragItem) return;
-    e.preventDefault();
-    e.stopPropagation();
-    let hint: DropHint;
-    if (target.type === "folder") {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const offset = (e.clientY - rect.top) / rect.height;
-      if (dragItem.type === "project") {
-        hint = { kind: "into", folderId: target.id };
-      } else if (offset < 0.25) {
-        hint = { kind: "before", type: "folder", id: target.id };
-      } else if (offset > 0.75) {
-        hint = { kind: "after", type: "folder", id: target.id };
+  /** Rows currently on screen, so the virtualised tree can size itself. */
+  function visibleRowCount(rows: TreeRow[]): number {
+    return rows.reduce(
+      (count, row) =>
+        count + 1 + (row.kind === "folder" && !row.folder.collapsed ? visibleRowCount(row.children) : 0),
+      0,
+    );
+  }
+
+  async function reload() {
+    const [projectList, folderList] = await Promise.all([
+      apiFetch<Project[]>("/projects"),
+      apiFetch<Folder[]>("/project-folders"),
+    ]);
+    setProjects(projectList);
+    setFolders(folderList);
+  }
+
+  /**
+   * react-arborist reports the new parent and index among all of that parent's
+   * children (folders first, then projects). Turn that into the ordered list
+   * for whichever kind moved and save it.
+   */
+  async function handleMove({
+    dragNodes,
+    parentNode,
+    index,
+  }: {
+    dragNodes: NodeApi<TreeRow>[];
+    parentNode: NodeApi<TreeRow> | null;
+    index: number;
+  }) {
+    const moved = dragNodes[0]?.data;
+    if (!moved) return;
+    const parentId = parentNode?.data.kind === "folder" ? parentNode.data.folder.id : null;
+    const siblings = (parentNode ? parentNode.children : treeRef.current?.root.children) ?? [];
+    const before = siblings.slice(0, index).filter((n) => n.data.kind === moved.kind && n.id !== moved.id).length;
+    try {
+      if (moved.kind === "project") {
+        const ids = projects
+          .filter((p) => p.folderId === parentId && p.id !== moved.project.id)
+          .sort(byPosition)
+          .map((p) => p.id);
+        ids.splice(before, 0, moved.project.id);
+        await apiFetch("/projects/arrange", {
+          method: "POST",
+          body: JSON.stringify({ folderId: parentId, projectIds: ids }),
+        });
       } else {
-        hint = { kind: "into", folderId: target.id };
+        const ids = folders
+          .filter((f) => f.parentId === parentId && f.id !== moved.folder.id)
+          .sort(byPosition)
+          .map((f) => f.id);
+        ids.splice(before, 0, moved.folder.id);
+        await apiFetch("/project-folders/arrange", {
+          method: "POST",
+          body: JSON.stringify({ parentId, folderIds: ids }),
+        });
       }
-    } else if (dragItem.type === "project") {
-      hint = { kind: isUpperHalf(e) ? "before" : "after", type: "project", id: target.id };
-    } else {
-      // A folder over a project row: drop into that project's folder
-      const project = projects.find((p) => p.id === target.id);
-      hint = { kind: "into", folderId: project?.folderId ?? null };
-    }
-    if (dragItem.type === "folder") {
-      const parent =
-        hint.kind === "into"
-          ? hint.folderId
-          : (folders.find((f) => f.id === hint.id)?.parentId ?? null);
-      if (!canDropFolderInto(dragItem.id, parent) || (hint.kind !== "into" && hint.id === dragItem.id)) {
-        e.dataTransfer.dropEffect = "none";
-        setDropHint(null);
-        return;
-      }
-    }
-    if (JSON.stringify(hint) !== JSON.stringify(dropHint)) setDropHint(hint);
+      if (parentId) expandFolder(parentId);
+    } catch {}
+    await reload().catch(() => {});
   }
 
-  async function moveProject(projectId: string, folderId: string | null, beforeId: string | null) {
-    const siblings = projects
-      .filter((p) => p.folderId === folderId && p.id !== projectId)
-      .sort(byPosition);
-    const index = beforeId ? siblings.findIndex((p) => p.id === beforeId) : -1;
-    const moving = projects.find((p) => p.id === projectId);
-    if (!moving) return;
-    const ordered = index === -1 ? [...siblings, moving] : [...siblings.slice(0, index), moving, ...siblings.slice(index)];
-    const previous = projects;
-    setProjects((prev) =>
-      prev.map((p) => {
-        const position = ordered.findIndex((o) => o.id === p.id);
-        return position === -1 ? p : { ...p, folderId, position };
-      }),
-    );
-    if (folderId) expandFolder(folderId);
-    try {
-      await apiFetch("/projects/arrange", {
-        method: "POST",
-        body: JSON.stringify({ folderId, projectIds: ordered.map((p) => p.id) }),
-      });
-    } catch {
-      setProjects(previous);
-    }
-  }
-
-  async function moveFolder(folderId: string, parentId: string | null, beforeId: string | null) {
-    if (!canDropFolderInto(folderId, parentId)) return;
-    const siblings = folders
-      .filter((f) => f.parentId === parentId && f.id !== folderId)
-      .sort(byPosition);
-    const index = beforeId ? siblings.findIndex((f) => f.id === beforeId) : -1;
-    const moving = folders.find((f) => f.id === folderId);
-    if (!moving) return;
-    const ordered = index === -1 ? [...siblings, moving] : [...siblings.slice(0, index), moving, ...siblings.slice(index)];
-    const previous = folders;
-    setFolders((prev) =>
-      prev.map((f) => {
-        const position = ordered.findIndex((o) => o.id === f.id);
-        return position === -1 ? f : { ...f, parentId, position };
-      }),
-    );
-    if (parentId) expandFolder(parentId);
-    try {
-      await apiFetch("/project-folders/arrange", {
-        method: "POST",
-        body: JSON.stringify({ parentId, folderIds: ordered.map((f) => f.id) }),
-      });
-    } catch {
-      setFolders(previous);
-    }
-  }
-
-  function handleDrop() {
-    const item = dragItem;
-    const hint = dropHint;
-    setDragItem(null);
-    setDropHint(null);
-    if (!item || !hint) return;
-
-    if (item.type === "project") {
-      if (hint.kind === "into") {
-        moveProject(item.id, hint.folderId, null);
-      } else if (hint.type === "project") {
-        const target = projects.find((p) => p.id === hint.id);
-        if (!target || target.id === item.id) return;
-        const siblings = projects
-          .filter((p) => p.folderId === target.folderId && p.id !== item.id)
-          .sort(byPosition);
-        const beforeId =
-          hint.kind === "before"
-            ? target.id
-            : (siblings[siblings.findIndex((p) => p.id === target.id) + 1]?.id ?? null);
-        moveProject(item.id, target.folderId, beforeId);
-      }
-      return;
-    }
-
-    if (hint.kind === "into") {
-      moveFolder(item.id, hint.folderId, null);
-    } else if (hint.type === "folder") {
-      const target = folders.find((f) => f.id === hint.id);
-      if (!target || target.id === item.id) return;
-      const siblings = folders
-        .filter((f) => f.parentId === target.parentId && f.id !== item.id)
-        .sort(byPosition);
-      const beforeId =
-        hint.kind === "before"
-          ? target.id
-          : (siblings[siblings.findIndex((f) => f.id === target.id) + 1]?.id ?? null);
-      moveFolder(item.id, target.parentId, beforeId);
-    }
-  }
-
-  function dragProps(item: DragItem) {
-    return {
-      draggable: true,
-      onDragStart: (e: React.DragEvent) => {
-        e.stopPropagation();
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", item.id);
-        setDragItem(item);
-        setCtxMenu(null);
-      },
-      onDragEnd: () => {
-        setDragItem(null);
-        setDropHint(null);
-      },
-      onDrop: (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        handleDrop();
-      },
-    };
-  }
-
-  function lineFor(type: "project" | "folder", id: string): string | undefined {
-    if (!dropHint || dropHint.kind === "into" || dropHint.type !== type || dropHint.id !== id) return undefined;
-    return dropHint.kind === "before"
-      ? "inset 0 2px 0 0 var(--text-mid)"
-      : "inset 0 -2px 0 0 var(--text-mid)";
-  }
-
-  // ── Rendering ─────────────────────────────────────────────────────────
-
-  /** Vertical lines showing which folder a nested row belongs to. */
-  function guides(depth: number) {
-    return Array.from({ length: depth }, (_, level) => (
-      <span
-        key={level}
-        aria-hidden
-        className="absolute top-0 bottom-0 w-px"
-        style={{ left: guideX(level), background: "var(--border)" }}
-      />
-    ));
-  }
-
-  function rowStyle(depth: number, extra?: React.CSSProperties): React.CSSProperties {
-    return {
-      borderColor: "var(--border)",
-      paddingLeft: 8 + depth * INDENT,
-      ...extra,
-    };
+  function countProjects(folderId: string): number {
+    const ids = subtreeIds(folders, folderId);
+    return projects.filter((p) => p.folderId && ids.has(p.folderId)).length;
   }
 
   function MoreButton({ label, onOpen }: { label: string; onOpen: (e: React.MouseEvent) => void }) {
@@ -445,164 +339,102 @@ export default function ProjectsPage() {
     );
   }
 
-  function renderProject(p: Project, depth: number) {
-    const isDragging = dragItem?.type === "project" && dragItem.id === p.id;
+  function Row({ node, style, dragHandle }: NodeRendererProps<TreeRow>) {
+    const row = node.data;
+    const highlight = node.willReceiveDrop;
     return (
       <div
-        key={p.id}
-        {...dragProps({ type: "project", id: p.id })}
-        onDragOver={(e) => onRowDragOver(e, { type: "project", id: p.id })}
-        className="relative flex items-center gap-2 h-12 pr-2 border-b cursor-pointer group"
-        style={rowStyle(depth, {
-          opacity: isDragging ? 0.35 : 1,
-          boxShadow: lineFor("project", p.id),
-        })}
-        onClick={() => router.push(`/dashboard/tasks/projects/${p.id}`)}
-        onMouseEnter={e => (e.currentTarget.style.background = "var(--surface)")}
-        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        ref={dragHandle}
+        style={{
+          ...style,
+          borderColor: "var(--border)",
+          background: highlight ? "var(--surface-raised)" : undefined,
+          boxShadow: highlight ? "inset 0 0 0 1px var(--border-mid)" : undefined,
+          opacity: node.isDragging ? 0.35 : 1,
+        }}
+        className="relative flex items-center gap-2 h-12 pr-2 border-b cursor-pointer group select-none"
+        onClick={() => (row.kind === "folder" ? node.toggle() : router.push(`/dashboard/tasks/projects/${row.project.id}`))}
+        onMouseEnter={e => { if (!highlight) e.currentTarget.style.background = "var(--surface)"; }}
+        onMouseLeave={e => { if (!highlight) e.currentTarget.style.background = ""; }}
       >
-        {guides(depth)}
-        {/* chevron column stays empty so names line up with folder names */}
-        <span className="w-4 shrink-0" aria-hidden />
-        <span className="w-4 h-4 shrink-0 flex items-center justify-center" aria-hidden>
-          <span
-            className="w-2.5 h-2.5 rounded-full transition-transform group-hover:scale-110"
-            style={{ background: p.color ?? "var(--border-mid)" }}
-          />
-        </span>
-        <span
-          className="flex-1 min-w-0 ml-1 text-[14px] tracking-[0.005em] truncate"
-          style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}
-        >
-          {p.name}
-        </span>
-        <MoreButton
-          label={`More options for ${p.name}`}
-          onOpen={(e) => setCtxMenu({ type: "project", id: p.id, x: e.clientX, y: e.clientY })}
-        />
-      </div>
-    );
-  }
-
-  function countProjects(folderId: string): number {
-    const ids = subtreeIds(folders, folderId);
-    return projects.filter((p) => p.folderId && ids.has(p.folderId)).length;
-  }
-
-  function renderFolder(folder: Folder, depth: number): React.ReactNode {
-    const isDragging = dragItem?.type === "folder" && dragItem.id === folder.id;
-    const isInto = dropHint?.kind === "into" && dropHint.folderId === folder.id;
-    const renaming = renamingFolderId === folder.id;
-    const open = !folder.collapsed;
-    const Icon = open ? FolderOpen : FolderIcon;
-    return (
-      <div key={folder.id} style={{ opacity: isDragging ? 0.35 : 1 }}>
-        <div
-          {...dragProps({ type: "folder", id: folder.id })}
-          draggable={!renaming}
-          onDragOver={(e) => onRowDragOver(e, { type: "folder", id: folder.id })}
-          className="relative flex items-center gap-2 h-12 pr-2 border-b cursor-pointer group select-none"
-          style={rowStyle(depth, {
-            background: isInto ? "var(--surface-raised)" : undefined,
-            boxShadow: isInto ? "inset 0 0 0 1px var(--border-mid)" : lineFor("folder", folder.id),
-          })}
-          onClick={() => !renaming && setCollapsed(folder.id, !folder.collapsed)}
-          onMouseEnter={e => { if (!isInto) e.currentTarget.style.background = "var(--surface)"; }}
-          onMouseLeave={e => { if (!isInto) e.currentTarget.style.background = ""; }}
-          aria-expanded={open}
-        >
-          {guides(depth)}
-          <ChevronRight
-            size={16}
-            className="shrink-0 transition-transform duration-150"
-            style={{ color: "var(--text-secondary)", transform: open ? "rotate(90deg)" : "none" }}
-            aria-hidden
-          />
-          <Icon size={16} strokeWidth={1.75} className="shrink-0" style={{ color: "var(--text-mid)" }} aria-hidden />
-          {renaming ? (
-            <input
-              ref={renameInputRef}
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitRename();
-                if (e.key === "Escape") setRenamingFolderId(null);
-              }}
-              onBlur={commitRename}
-              className="flex-1 min-w-0 ml-1 bg-transparent border-b outline-none text-[14px]"
-              style={{ color: "var(--text-primary)", borderColor: "var(--border-mid)", fontFamily: "var(--font-display)" }}
-              aria-label="Folder name"
+        {row.kind === "folder" ? (
+          <>
+            <ChevronRight
+              size={16}
+              className="shrink-0 transition-transform duration-150"
+              style={{ color: "var(--text-secondary)", transform: node.isOpen ? "rotate(90deg)" : "none" }}
+              aria-hidden
             />
-          ) : (
+            {node.isOpen ? (
+              <FolderOpen size={16} strokeWidth={1.75} className="shrink-0" style={{ color: "var(--text-mid)" }} aria-hidden />
+            ) : (
+              <FolderIcon size={16} strokeWidth={1.75} className="shrink-0" style={{ color: "var(--text-mid)" }} aria-hidden />
+            )}
+            {node.isEditing ? (
+              <input
+                autoFocus
+                defaultValue={row.folder.name}
+                onFocus={(e) => e.currentTarget.select()}
+                onClick={(e) => e.stopPropagation()}
+                onBlur={(e) => node.submit(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") node.submit(e.currentTarget.value);
+                  if (e.key === "Escape") node.reset();
+                }}
+                className="flex-1 min-w-0 ml-1 bg-transparent border-b outline-none text-[14px]"
+                style={{ color: "var(--text-primary)", borderColor: "var(--border-mid)", fontFamily: "var(--font-display)" }}
+                aria-label="Folder name"
+              />
+            ) : (
+              <span
+                className="flex-1 min-w-0 ml-1 truncate text-[14px] font-semibold tracking-[-0.005em]"
+                style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  node.edit();
+                }}
+              >
+                {row.folder.name}
+              </span>
+            )}
             <span
-              className="flex-1 min-w-0 ml-1 truncate text-[14px] font-semibold tracking-[-0.005em]"
-              style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                startRename(folder);
-              }}
+              className="min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center text-[10px] shrink-0"
+              style={{ color: "var(--text-mid)", background: "var(--surface-2)", border: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}
             >
-              {folder.name}
+              {countProjects(row.folder.id)}
             </span>
-          )}
-          <span
-            className="min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center text-[10px] shrink-0"
-            style={{ color: "var(--text-mid)", background: "var(--surface-2)", border: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}
-            title={`${countProjects(folder.id)} project${countProjects(folder.id) === 1 ? "" : "s"}`}
-          >
-            {countProjects(folder.id)}
-          </span>
-          <MoreButton
-            label={`Options for folder ${folder.name}`}
-            onOpen={(e) => setCtxMenu({ type: "folder", id: folder.id, x: e.clientX, y: e.clientY })}
-          />
-        </div>
-        {open && renderContainer(folder.id, depth + 1)}
+            <MoreButton
+              label={`Options for folder ${row.folder.name}`}
+              onOpen={(e) => setCtxMenu({ type: "folder", id: row.folder.id, x: e.clientX, y: e.clientY })}
+            />
+          </>
+        ) : (
+          <>
+            {/* chevron column stays empty so names line up with folder names */}
+            <span className="w-4 shrink-0" aria-hidden />
+            <span className="w-4 h-4 shrink-0 flex items-center justify-center" aria-hidden>
+              <span
+                className="w-2.5 h-2.5 rounded-full transition-transform group-hover:scale-110"
+                style={{ background: row.project.color ?? "var(--border-mid)" }}
+              />
+            </span>
+            <span
+              className="flex-1 min-w-0 ml-1 text-[14px] tracking-[0.005em] truncate"
+              style={{ color: "var(--text-primary)", fontFamily: "var(--font-display)" }}
+            >
+              {row.project.name}
+            </span>
+            <MoreButton
+              label={`More options for ${row.project.name}`}
+              onOpen={(e) => setCtxMenu({ type: "project", id: row.project.id, x: e.clientX, y: e.clientY })}
+            />
+          </>
+        )}
       </div>
     );
   }
 
-  function renderContainer(folderId: string | null, depth: number): React.ReactNode {
-    const childFolders = folders.filter((f) => f.parentId === folderId).sort(byPosition);
-    const childProjects = projects.filter((p) => p.folderId === folderId).sort(byPosition);
-    if (folderId && !childFolders.length && !childProjects.length) {
-      const isInto = dropHint?.kind === "into" && dropHint.folderId === folderId;
-      return (
-        <div
-          className="relative flex items-center gap-2 h-10 border-b text-[12px] tracking-[0.02em]"
-          style={rowStyle(depth, {
-            color: "var(--text-secondary)",
-            background: isInto ? "var(--surface-raised)" : undefined,
-          })}
-          onDragOver={(e) => {
-            if (!dragItem) return;
-            e.preventDefault();
-            e.stopPropagation();
-            const hint: DropHint = { kind: "into", folderId };
-            if (dragItem.type === "folder" && !canDropFolderInto(dragItem.id, folderId)) return;
-            if (JSON.stringify(hint) !== JSON.stringify(dropHint)) setDropHint(hint);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleDrop();
-          }}
-        >
-          {guides(depth)}
-          <span className="w-4 shrink-0" aria-hidden />
-          <span className="w-4 shrink-0" aria-hidden />
-          <span className="ml-1 italic opacity-70">Empty. Drag projects here</span>
-        </div>
-      );
-    }
-    return (
-      <>
-        {childFolders.map((folder) => renderFolder(folder, depth))}
-        {childProjects.map((project) => renderProject(project, depth))}
-      </>
-    );
-  }
+  const rows = buildRows(null);
 
   const ctxFolder = ctxMenu?.type === "folder" ? folders.find((f) => f.id === ctxMenu.id) : null;
   const menuItemClass = "block w-full text-left px-3 py-2 text-[12px] tracking-[0.03em] transition-colors";
@@ -690,32 +522,30 @@ export default function ProjectsPage() {
               <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
             </div>
 
-            {renderContainer(null, 0)}
-
-            {/* Top-level drop zone, shown while dragging */}
-            {dragItem && (
-              <div
-                className="mt-3 py-3 rounded-lg border border-dashed text-center text-[11px] tracking-[0.03em]"
-                style={{
-                  borderColor: dropHint?.kind === "into" && dropHint.folderId === null ? "var(--border-hi)" : "var(--border)",
-                  color: "var(--text-secondary)",
-                  fontFamily: "var(--font-mono)",
-                  background: dropHint?.kind === "into" && dropHint.folderId === null ? "var(--surface)" : "none",
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (!(dropHint?.kind === "into" && dropHint.folderId === null)) {
-                    setDropHint({ kind: "into", folderId: null });
-                  }
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handleDrop();
-                }}
-              >
-                Drop here to move out of all folders
-              </div>
-            )}
+            <Tree<TreeRow>
+              ref={treeRef}
+              data={rows}
+              width="100%"
+              height={Math.max(1, visibleRowCount(rows)) * ROW_HEIGHT}
+              rowHeight={ROW_HEIGHT}
+              indent={24}
+              paddingBottom={0}
+              openByDefault={false}
+              initialOpenState={Object.fromEntries(folders.map((f) => [folderRowId(f.id), !f.collapsed]))}
+              disableMultiSelection
+              disableEdit={(row) => row.kind !== "folder"}
+              disableDrop={({ parentNode }) => parentNode?.data?.kind === "project"}
+              onMove={handleMove}
+              onRename={({ node, name }) => {
+                if (node.data.kind === "folder") return renameFolder(node.data.folder.id, name);
+              }}
+              onToggle={(id) => {
+                const folder = folders.find((f) => folderRowId(f.id) === id);
+                if (folder) setCollapsed(folder.id, !folder.collapsed);
+              }}
+            >
+              {Row}
+            </Tree>
           </div>
         )}
       </div>
@@ -755,22 +585,33 @@ export default function ProjectsPage() {
             </>
           ) : ctxFolder ? (
             <>
-              {[
-                { label: "New project here", action: () => { setCtxMenu(null); openCreate(ctxFolder.id); } },
-                { label: "New subfolder", action: () => createFolder(ctxFolder.id) },
-                { label: "Rename", action: () => startRename(ctxFolder) },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  onClick={item.action}
-                  className={menuItemClass}
-                  style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-raised)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  {item.label}
-                </button>
-              ))}
+              <button
+                onClick={() => { setCtxMenu(null); openCreate(ctxFolder.id); }}
+                className={menuItemClass}
+                style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-raised)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >
+                New project here
+              </button>
+              <button
+                onClick={() => createFolder(ctxFolder.id)}
+                className={menuItemClass}
+                style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-raised)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >
+                New subfolder
+              </button>
+              <button
+                onClick={() => startRename(ctxFolder)}
+                className={menuItemClass}
+                style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-raised)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >
+                Rename
+              </button>
               <div className="h-px my-1" style={{ background: "var(--border)" }} />
               <button
                 onClick={() => deleteFolder(ctxFolder.id)}
@@ -839,9 +680,9 @@ export default function ProjectsPage() {
 
               <div>
                 <label className="block text-[10px] tracking-widest uppercase mb-2" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>Folder</label>
-                <select
+                <SelectField
                   value={fFolderId}
-                  onChange={e => setFFolderId(e.target.value)}
+                  onChange={(value) => setFFolderId(value)}
                   className="w-full rounded-[7px] border px-3 py-2.5 text-[13px] outline-none"
                   style={{ background: "var(--surface-raised)", borderColor: "var(--border)", color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
                 >
@@ -849,7 +690,7 @@ export default function ProjectsPage() {
                   {folderOptions().map((option) => (
                     <option key={option.id} value={option.id}>{option.label}</option>
                   ))}
-                </select>
+                </SelectField>
               </div>
 
               <div>

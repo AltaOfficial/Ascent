@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import React from "react";
 import { apiFetch } from "@/lib/api";
 import { type Task } from "@/components/dashboard/TaskRow";
+import { SelectField } from "@/components/ui/select";
 
 type Status = "todo" | "in_progress" | "blocked" | "done";
 type Priority = "low" | "medium" | "high";
@@ -258,46 +259,46 @@ export function TaskModal({
     {
       label: "Status",
       element: (
-        <select
+        <SelectField
           className="w-full rounded-md border px-2.5 py-1.5 text-[11px] outline-none"
           style={fieldSelectStyle}
           value={status}
-          onChange={(e) => setStatus(e.target.value as Status)}
+          onChange={(value) => setStatus(value as Status)}
         >
           <option value="todo">Todo</option>
           <option value="in_progress">In Progress</option>
           <option value="blocked">Blocked</option>
           <option value="done">Done</option>
-        </select>
+        </SelectField>
       ),
     },
     {
       label: "Priority",
       element: (
-        <select
+        <SelectField
           className="w-full rounded-md border px-2.5 py-1.5 text-[11px] outline-none"
           style={fieldSelectStyle}
           value={priority}
-          onChange={(e) => setPriority(e.target.value as Priority)}
+          onChange={(value) => setPriority(value as Priority)}
         >
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
-        </select>
+        </SelectField>
       ),
     },
     {
       label: "Tag",
       element: (
         <div className="relative">
-          <select
+          <SelectField
             className="w-full rounded-md border px-2.5 py-1.5 text-[11px] outline-none"
             style={{
               ...fieldSelectStyle,
               ...(selectedTag ? { color: selectedTag.color } : {}),
             }}
             value={categoryTag}
-            onChange={(e) => setCategoryTag(e.target.value)}
+            onChange={(value) => setCategoryTag(value)}
           >
             <option value="">None</option>
             {projectTags.map((tag) => (
@@ -305,7 +306,7 @@ export function TaskModal({
                 {tag.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </div>
       ),
     },
@@ -314,11 +315,11 @@ export function TaskModal({
           {
             label: "Milestone",
             element: (
-              <select
+              <SelectField
                 className="w-full rounded-md border px-2.5 py-1.5 text-[11px] outline-none"
                 style={fieldSelectStyle}
                 value={milestoneId}
-                onChange={(e) => setMilestoneId(e.target.value)}
+                onChange={(value) => setMilestoneId(value)}
               >
                 <option value="">None</option>
                 {milestones.map((milestone) => (
@@ -327,7 +328,7 @@ export function TaskModal({
                     {milestone.status === "done" ? " (done)" : ""}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             ),
           },
         ]

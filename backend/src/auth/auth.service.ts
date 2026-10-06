@@ -5,6 +5,7 @@ import { SignupDto } from './dtos/signup.dto';
 import { UserDto } from '../users/dtos/user.dto';
 import { InvitesService } from '../invites/invites.service';
 import * as bcrypt from 'bcrypt';
+import { MCP_HANDOFF_TYPE } from '../mcp/ascent-login.provider';
 
 @Injectable()
 export class AuthService {
@@ -57,6 +58,26 @@ export class AuthService {
 
     return {
       access_token: this.jwtService.sign(payload),
+    };
+  }
+
+  /**
+   * A 2-minute token the MCP sign-in page hands to the OAuth callback, proving
+   * which signed-in Ascent user approved connecting Claude.
+   */
+  async createMcpHandoff(userId: string) {
+    const user = await this.usersService.findOneById(userId);
+    if (!user) throw new BadRequestException('User not found');
+    return {
+      handoff: this.jwtService.sign(
+        {
+          sub: user.id,
+          email: user.email,
+          name: `${user.firstName} ${user.lastName}`,
+          type: MCP_HANDOFF_TYPE,
+        },
+        { expiresIn: '2m' },
+      ),
     };
   }
 }

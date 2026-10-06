@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { TasksService } from '../../tasks/tasks.service';
 import { TaskStatus } from '../../tasks/entities/task.entity';
 import { TimeEntriesService } from '../../time-entries/time-entries.service';
-import type { McpRequest } from '../mcp-auth.guard';
+import type { McpRequestWithUser } from '@rekog/mcp-nest';
 import { id } from './tool-utils';
 
 const MAX_SESSION_MS = 24 * 3_600_000;
@@ -30,9 +30,9 @@ export class TimeTools {
   async startTimer(
     { taskId }: { taskId: string },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     const task = await this.tasksService.findOneById(taskId, userId);
     if (!task) throw new NotFoundException('Task not found');
     await this.timeEntriesService.stopActive(userId);
@@ -49,10 +49,12 @@ export class TimeTools {
     name: 'stop_timer',
     description: 'Stop the running timer, if any.',
   })
-  async stopTimer(_args: object, _context: Context, request: McpRequest) {
-    const stopped = await this.timeEntriesService.stopActive(
-      request.user.userId,
-    );
+  async stopTimer(
+    _args: object,
+    _context: Context,
+    request: McpRequestWithUser,
+  ) {
+    const stopped = await this.timeEntriesService.stopActive(request.user.sub);
     if (!stopped) return 'No timer was running.';
     const minutes = Math.round(
       (stopped.endedAt.getTime() - stopped.startedAt.getTime()) / 60_000,
@@ -88,9 +90,9 @@ export class TimeTools {
       minutes?: number;
     },
     _context: Context,
-    request: McpRequest,
+    request: McpRequestWithUser,
   ) {
-    const { userId } = request.user;
+    const userId = request.user.sub;
     const task = await this.tasksService.findOneById(taskId, userId);
     if (!task) throw new NotFoundException('Task not found');
 
